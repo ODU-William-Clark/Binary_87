@@ -1,0 +1,37 @@
+import numpy as np
+from scipy.interpolate import interp1d
+
+# --- Compute r distribution using Lucy's deconvolution ---
+def get_r_distribution(n_bins=10000, r_min=0, r_max=1800, n_iter=10):
+    r_p_bins = np.linspace(r_min, r_max, n_bins)
+    r_p_centers = 0.5 * (r_p_bins[1:] + r_p_bins[:-1])
+
+    f_rp_obs = 416 / r_p_centers * np.exp(-0.63 * (np.log(r_p_centers) - 4.32) ** 2)
+    f_rp_obs /= np.trapz(f_rp_obs, r_p_centers)
+
+    r_vals = np.linspace(r_min, r_max, n_bins)
+    dr = r_vals[1] - r_vals[0]
+
+    def abel_kernel(rp, r):
+        with np.errstate(divide='ignore', invalid='ignore'):
+            return np.where(r >= rp, rp / r / np.sqrt(r**2 - rp**2), 0)
+
+    K = np.array([abel_kernel(rp, r_vals) for rp in r_p_centers])
+    f_r = np.ones_like(r_vals)
+    f_r /= np.trapz(f_r, r_vals)
+
+    for _ in range(n_iter):
+        f_proj = K @ f_r * dr
+        ratio = np.where(f_proj > 0, f_rp_obs / f_proj, 0)
+        correction = K.T @ ratio * (r_p_centers[1] - r_p_centers[0])
+        f_r *= correction
+        f_r = np.clip(f_r, 0, np.inf)
+        f_r /= np.trapz(f_r, r_vals)
+
+    return r_vals, f_r
+
+# Optional utility to return a sampler
+def build_r_sampler(r_vals, f_r):
+    cdf = np.cumsum(f_r)
+    cdf /= cdf[-1]
+    return interp1d(cdf, r_vals, bounds_error=False, fill_value=(r_vals[0], r_vals[-1]))
