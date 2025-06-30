@@ -1,0 +1,148 @@
+import time
+
+import numpy as np
+import matplotlib.pyplot as plt
+from concurrent.futures import ProcessPoolExecutor
+from Binary_87_r_distro import get_r_distribution, build_r_sampler
+from Binary_87_psi import sample_psi
+start_time = time.perf_counter()
+
+
+G = 4.30091e-6  # kpc * (km/s)^2 / M_sun
+ecc_models = ['f1', 'f2', 'f3', 'f4', 'f5']
+n_samples = 10000
+
+# Step 1: Get the reconstructed r distribution
+r_vals, f_r = get_r_distribution(r_min=10, r_max=1500)
+
+def simulate_model(model):
+    r_sampler = build_r_sampler(r_vals, f_r)
+    r = r_sampler(np.random.uniform(0, 1, size=n_samples))
+    psi = sample_psi(model, r, n_samples=n_samples, mass=1)
+    
+    theta_1 = np.random.uniform(0, np.pi, size=n_samples)
+    theta_2 = np.random.uniform(-np.pi/2, np.pi/2, size=n_samples)
+    
+    r_proj=r*(np.sin(theta_1))
+    psi_proj=psi*(np.cos(theta_2))
+    
+    r = r_sampler(np.random.uniform(0, 1, size=n_samples))
+
+    # phi = np.random.uniform(0, 2 * np.pi, size=n_samples)
+    # costheta = np.random.uniform(-1, 1, size=n_samples)
+    # sintheta = np.sqrt(1 - costheta**2)
+    
+    # Construct r_proj = projection of radius onto the plane of sky
+    # (i.e., component perpendicular to line of sight)
+    # r_proj = r * sintheta  # proper projection
+    
+    # # Construct psi_proj = component of relative velocity along the line of sight
+    # psi_proj = psi * costheta  # proper projection
+
+
+    # sin_theta = np.random.uniform(-1, 1, size=n_samples)
+    # cos_theta = np.random.uniform(-1, 1, size=n_samples)
+    
+    # r_proj = r * np.sqrt(1 - sin_theta**2)
+    
+    # psi_proj = psi * np.sqrt(1 - cos_theta**2)
+   
+    # r_proj = r * np.abs(cos_theta)
+    # psi_proj = psi*np.sqrt(1 - cos_theta**2)
+    
+
+        # Apply M8: rejection based on exp(r_p / 225)
+    # Higher r_p has higher probability of rejection
+    #rejection_weights = np.exp(r_proj / 225)
+    rejection_probs = np.exp(r_proj / 255) / np.exp(800 / 255)
+    
+    # Keep pairs with probability 1 - rejection_prob
+    keep_mask = np.random.rand(n_samples) > rejection_probs
+    r_proj_kept = r_proj[keep_mask]
+    psi_proj_kept = psi_proj[keep_mask]
+
+    return model, psi, r, r_proj, psi_proj, r_proj_kept, psi_proj_kept
+if __name__ == '__main__':
+    # Run simulations in parallel
+    results = {}
+    with ProcessPoolExecutor() as executor:
+        futures = [executor.submit(simulate_model, model) for model in ecc_models]
+        for future in futures:
+            model, psi, r, r_proj, psi_proj, r_proj_kept, psi_proj_kept = future.result()
+            results[model] = {
+                "psi": psi,
+                "r": r,
+                "r_proj": r_proj,
+                "psi_proj": psi_proj,
+                "r_proj_kept": r_proj_kept,
+                "psi_proj_kept": psi_proj_kept
+            }
+    
+    # Save data
+    np.savez_compressed(
+        "simulated_psi_data_test.npz",
+        psi_samples={k: results[k]["psi"] for k in results},
+        r_samples={k: results[k]["r"] for k in results},
+        r_proj_samples={k: results[k]["r_proj"] for k in results},
+        psi_proj_samples={k: results[k]["psi_proj"] for k in results},
+        filtered_r_proj={k: results[k]["r_proj_kept"] for k in results},
+        filtered_psi_proj={k: results[k]["psi_proj_kept"] for k in results}
+    )
+    
+    # Plotting f(r)
+    plt.figure(figsize=(8, 4))
+    plt.plot(r_vals, f_r * 100, 'k--', label='Estimated f(r) × 10²')
+    plt.xlabel("Separation r (kpc)")
+    plt.ylabel("Probability Density × 10² (kpc⁻¹)")
+    plt.title("Reconstructed f(r) Distribution")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.legend()
+    plt.show()
+    
+    # Plot psi distributions
+    plt.figure(figsize=(10, 6))
+    for model in ecc_models:
+        plt.hist(results[model]["psi"], bins=100, alpha=0.6, label=f'{model}')
+    plt.xlabel(r"psi [km/s / $\sqrt{M_\odot}$]")
+    plt.ylabel("Count")
+    plt.title("Distribution of psi for Different Eccentricity Models")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+    
+    # Scatter plots before and after rejection
+    fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+    axes = axes.flatten()
+    for i, model in enumerate(ecc_models):
+        ax = axes[i]
+        ax.scatter(results[model]["r_proj"], results[model]["psi_proj"], s=5, alpha=0.5)
+        ax.set_title(f"Before Rejection - f{i+1}: {model}")
+        ax.set_xlabel("$r_p$ (kpc)")
+        ax.set_ylabel(r"psi_p [km/s / $\sqrt{M_\odot}$]")
+        ax.grid(True)
+    if len(ecc_models) < len(axes):
+        axes[-1].axis('off')
+    plt.suptitle("Before M8: $r_p$ vs. psi_p by Eccentricity Model")
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    plt.show()
+    
+    fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+    axes = axes.flatten()
+    for i, model in enumerate(ecc_models):
+        ax = axes[i]
+        ax.scatter(results[model]["r_proj_kept"], results[model]["psi_proj_kept"], s=5, alpha=0.5)
+        ax.set_title(f"After Rejection - f{i+1}: {model}")
+        ax.set_xlabel("$r_p$ (kpc)")
+        ax.set_ylabel(r"psi_p [km/s / $\sqrt{M_\odot}$]")
+        ax.grid(True)
+    if len(ecc_models) < len(axes):
+        axes[-1].axis('off')
+    plt.suptitle("After M8: $r_p$ vs. psi_p by Eccentricity Model")
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    plt.show()
+    
+end_time = time.perf_counter()
+elapsed_time = end_time - start_time
+print(f"Elapsed time: {elapsed_time:.4f} seconds")
