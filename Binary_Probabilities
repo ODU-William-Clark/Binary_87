@@ -1,0 +1,127 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.interpolate import interp1d
+import pandas as pd
+import random
+
+# --------------------
+# Constants and Settings
+# --------------------
+H0 = 50  # Hubble constant in km/s/Mpc
+c = 3e5  # speed of light in km/s
+M0 = -20.70
+beta = -0.03
+deg_to_rad = np.pi / 180
+fields = 10
+theta_p_max_deg = 1.0
+theta_p_max_rad = theta_p_max_deg * deg_to_rad
+mag_limit = 15.0
+n_galaxies_range = (50, 150)
+
+# --------------------
+# Luminosity Function
+# --------------------
+def phi_M(M):
+    x = 10 ** (0.4 * (M0 - M))
+    return x ** beta * np.exp(-x)
+
+def p_v_given_m(v, m):
+    with np.errstate(divide='ignore', invalid='ignore'):
+        M = m - 5 * np.log10(v / H0) - 25
+    return phi_M(M) * v**2
+
+def precompute_velocity_sampler(m, v_min=500, v_max=25000, n_points=1000):
+    v_values = np.linspace(v_min, v_max, n_points)
+    p_values = p_v_given_m(v_values, m)
+    cdf = np.cumsum(p_values)
+    cdf /= cdf[-1]  # normalize
+    inv_cdf = interp1d(cdf, v_values, bounds_error=False, fill_value=(v_values[0], v_values[-1]))
+    return lambda: float(inv_cdf(np.random.uniform(0, 1)))
+
+# --------------------
+# Simulate Galaxy Fields
+# --------------------
+def generate_fields_with_velocity_sampler(n_fields):
+    all_pairs = []
+    for _ in range(n_fields):
+        N = random.randint(*n_galaxies_range)
+        galaxies = []
+        for _ in range(N):
+            ra = np.random.uniform(0, 1)
+            dec = np.random.uniform(0, 1)
+            m = np.random.uniform(9.0, 18.0)
+            galaxies.append((ra, dec, m))
+
+        for i in range(len(galaxies)):
+            for j in range(i + 1, len(galaxies)):
+                ra1, dec1, m1 = galaxies[i]
+                ra2, dec2, m2 = galaxies[j]
+                dtheta = np.sqrt((ra1 - ra2)**2 + (dec1 - dec2)**2) * deg_to_rad
+                if dtheta > theta_p_max_rad:
+                    continue
+                m_br = min(m1, m2)
+                m_f = max(m1, m2)
+                m_n = m_f
+                if dtheta < dtheta * 10**(0.72 - 0.13 * m_n - m_br):
+                    continue
+                if m_f > mag_limit:
+                    continue
+
+                v_sampler_1 = precompute_velocity_sampler(m1)
+                v_sampler_2 = precompute_velocity_sampler(m2)
+                v1 = v_sampler_1()
+                v2 = v_sampler_2()
+                v_avg = 0.5 * (v1 + v2)
+                rp = 40 * v_avg * np.tan(dtheta / 2)
+                dv = abs(v1 - v2) / (1 + v_avg / c)
+                all_pairs.append((rp, dv))
+    return all_pairs
+
+# Generate simulated galaxy pair distribution
+simulated_pairs = generate_fields_with_velocity_sampler(fields)
+df_simulated = pd.DataFrame(simulated_pairs, columns=["r", "v"])
+
+# Load and Process Observed Data
+df_observed = pd.read_csv("Binary_gal_87 - Sheet1.CSV")
+df_observed = df_observed.dropna(subset=["r", "v"])
+df_observed = df_observed[df_observed["v"] <= 7000]
+
+# Define velocity bins according to paper
+bins = [(0, 200), (200, 1000), (1000, 7000)]
+P_N = 5.3 / len(df_observed)  # as per paper
+
+# Bin counts for simulated and observed data
+sim_counts = []
+obs_counts = []
+for vmin, vmax in bins:
+    sim_count = ((df_simulated["v"] >= vmin) & (df_simulated["v"] < vmax)).sum()
+    obs_count = ((df_observed["v"] >= vmin) & (df_observed["v"] < vmax)).sum()
+    sim_counts.append(sim_count)
+    obs_counts.append(obs_count)
+
+# Total simulated optical pairs
+total_sim = len(df_simulated)
+
+# Compute P(B|C) for each bin (no scaling of probabilities)
+P_B_given_C_bins = []
+for i in range(len(bins)):
+    P_C = obs_counts[i] / len(df_observed)
+    P_CN = sim_counts[i] / total_sim
+    P_BC = 1 - (P_CN * P_N) / P_C if P_C > 0 else 0
+    P_B_given_C_bins.append(P_BC)
+
+# Assign probabilities to observed data
+P_B_given_C = []
+for v in df_observed["v"]:
+    if v < 200:
+        P_B_given_C.append(P_B_given_C_bins[0])
+    elif v < 1000:
+        P_B_given_C.append(P_B_given_C_bins[1])
+    else:
+        P_B_given_C.append(P_B_given_C_bins[2])
+
+df_observed["P(B|C)"] = P_B_given_C
+
+# Save results to a text file
+output_filename = "Binary_gal_97_with_probabilities.txt"
+df_observed.to_csv(output_filename, index=False, sep='\t')
