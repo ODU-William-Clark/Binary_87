@@ -1,0 +1,158 @@
+import numpy as np
+import pandas as pd
+from scipy.interpolate import interp1d
+from scipy.ndimage import gaussian_filter1d
+import matplotlib.pyplot as plt
+import time
+
+start_time = time.perf_counter()
+'''
+This code uses histograms instead of KDEs
+THIS CODE DOES NOT CACH
+no filtering based on radius
+'''
+# --------------------------------------------
+# CONFIGURATION
+# --------------------------------------------
+nb = 5 #best 10
+MM=[]
+obbb = []
+G = 4.30091e-6  # kpc * (km/s)^2 / M_sun
+
+
+# --------------------------------------------
+# Load Simulated Data
+# --------------------------------------------
+sim_data = np.load("simulated_psi_data_test.npz", allow_pickle=True)
+psi_proj_samples = sim_data['filtered_psi_proj'].item()
+r_proj_samples = sim_data['filtered_r_proj'].item()
+
+# --------------------------------------------
+# Load Observed Data
+# --------------------------------------------
+df_obs = pd.read_csv("Binary_gal_87.txt")
+#df_obs = pd.read_csv("rc3_formatted.csv")
+
+required_cols = ["Pair", "type1", "type2", "theta", "r", "v", "L1", "L2", "M", "P", "sigma1", "sigma2"]
+for col in required_cols:
+    if col not in df_obs.columns:
+        raise KeyError(f"Missing required column: {col}")
+df_obs = df_obs[df_obs["P"] > 0.5]
+
+for col in ["type1", "type2", "r", "v", "L1", "L2", "M", "P"]:
+    df_obs[col] = pd.to_numeric(df_obs[col], errors='raise')
+    
+# --------------------------------------------
+# Morphology Functions
+# --------------------------------------------
+def q1(t): return 6.47 - 0.39 * t
+def q2(t): return np.where(t <= 0, 2.0, 1.0)
+def q3(t): return np.ones_like(t)
+q_funcs = {'q1': q1, 'q2': q2, 'q3': q3}
+
+# --------------------------------------------
+# Main Loop
+# --------------------------------------------
+results = []
+
+for model in psi_proj_samples:
+    print(model)
+    sim_r = np.array(r_proj_samples[model])
+    sim_psi = np.array(psi_proj_samples[model])
+
+    for q_label, q_func in q_funcs.items():
+        #for y in np.logspace(np.log10(0.1), np.log10(150), 2000):
+        for y in np.linspace(0.1, 500, 1000): #best (0.1,500,1000)
+            
+            
+            u_values = []
+            p_values = []
+
+            for _, row in df_obs.iterrows():
+                dv = row["v"]
+                r_obs = row["r"]
+                L1 = row["L1"]
+                L2 = row["L2"]
+                t1 = row["type1"]
+                t2 = row["type2"]
+
+                qA = q_func(np.array([t1]))[0]
+                qB = q_func(np.array([t2]))[0]
+
+                L1_corrected = L1 * 1e10
+                L2_corrected = L2 * 1e10
+                M = y * (qA * L1_corrected + qB * L2_corrected)
+                MM.append(M)
+                if M <= 0:
+                    continue
+
+                psi_obs = dv / np.sqrt(M)
+                
+                sim_psi_bin = sim_psi
+                
+
+                # bin_index = np.digitize(r_obs, r_bins) - 1
+                # if bin_index < 0 or bin_index >= len(r_bins) - 1:
+                #     continue
+
+                # mask = (sim_r >= r_bins[bin_index]) & (sim_r < r_bins[bin_index + 1])
+                # sim_psi_bin = sim_psi[mask]
+
+                # obbb.append(len(sim_psi_bin))
+                # if len(sim_psi_bin) < 15:
+                #     print("!!!!!!!!!!!!!!!!")
+                #     continue
+
+                hist, edges = np.histogram(sim_psi_bin, bins=50, range=(0, np.max(sim_psi_bin) * 1.2)) #best 50
+                bin_centers = 0.5 * (edges[:-1] + edges[1:])
+                dx = bin_centers[1] - bin_centers[0]
+
+                try:
+                    sigma1 = float(row["sigma1"])
+                    sigma2 = float(row["sigma2"])
+                    sigma_v = np.sqrt(sigma1**2 + sigma2**2)
+                except:
+                    sigma_v = 9.0#19
+
+                sigma_psi = sigma_v / np.sqrt(M)
+                sigma_bins = sigma_psi / dx
+
+                pdf = hist / np.sum(hist * dx)
+                pdf_convolved = gaussian_filter1d(pdf, sigma=sigma_bins)
+                pdf_convolved /= np.sum(pdf_convolved * dx)
+                cdf = np.cumsum(pdf_convolved) * dx
+                cdf /= cdf[-1]
+
+                cdf_interp = interp1d(bin_centers, cdf, bounds_error=False, fill_value=(0, 1))
+                
+                u = cdf_interp(psi_obs)
+               # print(f"sigma_bins: {sigma_bins:.3f}, max hist: {np.max(hist)}, len(hist): {len(hist)}")
+                u_values.append(u)
+                p_values.append(row["P"])
+
+            if len(u_values) >= nb:
+                
+               
+                hist_weighted, _ = np.histogram(u_values, bins=nb, range=(0, 1), weights=p_values)
+                total_weight = np.sum(hist_weighted)
+                expected_weight = total_weight / nb
+                chi_sq = np.sum((hist_weighted - expected_weight) ** 2 / expected_weight)
+                results.append((model, q_label, y, chi_sq))
+
+# --------------------------------------------
+# Save Results
+# --------------------------------------------
+results_df = pd.DataFrame(results, columns=["f_model", "q_model", "y", "chi_squared"])
+results_df["reduced_chi_squared"] = results_df["chi_squared"] / (nb - 1)
+results_df["nb"] = nb  # Add a column for number of bins
+results_df.to_csv("ML_fit_results.csv", index=False)
+print("Analysis complete. Results with reduced chi-square saved to ML_fit_results.csv")
+
+end_time = time.perf_counter()
+elapsed_time = end_time - start_time
+print(f"Elapsed time: {elapsed_time:.4f} seconds")
+
+# plt.hist(obbb, bins=500)
+# print(min(obbb))
+# print(max(obbb))
+# print(sum(obbb) / len(obbb))
