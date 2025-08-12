@@ -6,7 +6,7 @@ Then artificial galaxies are created using  Binary_simulate_galaxies_parallel to
 
 BInary_87 then calculates mass to light ratios for the real galaxies for multiple differnt values of eccentricites and morphological functions.
 
-
+Chi Square calculator takes BInary_87 output data and determines the best fit combination of eccentricities and morphological functions alond with chi quares.
 
 The remaining functions are used to create realistic r_p distributions (r_distro) and Binary_psi is used for calculating psi_p values.  
 
