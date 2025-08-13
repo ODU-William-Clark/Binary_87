@@ -1,6 +1,6 @@
 The code is used to calculate mass to luminosity ratios in the K-magnitudes and B -V color indices for binary galaxies.
 
-
+Calculate luminosites, projected radial seperations, and projected velocity differences using Binary_Luminsoity_Calculator
 
 After galaxy binaries have been identified, the are fed through Binary_probabilites to determine the likelihood they are true binaries.
 
