@@ -11,12 +11,18 @@ ecc_models = ['f1', 'f2', 'f3', 'f4', 'f5']
 n_samples = 500000
 
 # --- M8 selection function -------------------------------------------------
-# Probability of REJECTING a pair rises exponentially with projected
-# separation, reaching 1 at M8_RP_CUT kpc (everything wider is always cut).
-# NOTE: these two constants come straight from the original code and are not
-# documented anywhere; they need checking against Schweizer 1987b.
+# S87 eq. (25) gives the RECIPROCAL correction factor for physical pairs that
+# were accidentally excluded, nu^-1(r_p) proportional to dex(-0.0017 r_p);
+# eq. (26) writes it as nu(r_p) = c exp(r_p / 255 kpc).  Since nu is the factor
+# by which observed counts are scaled UP, the acceptance probability is its
+# reciprocal:
+#
+#     P_accept(r_p) = exp(-r_p / 255 kpc)
+#
+# The previous form, P_accept = 1 - exp((r_p - 800)/255), was nearly flat out
+# to an invented hard wall at 800 kpc (no such cutoff appears in the paper) and
+# removed only ~8 per cent of pairs where eq. (26) removes ~31 per cent.
 M8_SCALE_KPC = 255.0
-M8_RP_CUT = 800.0
 
 
 def simulate_model(model, r_vals, f_r):
@@ -47,9 +53,9 @@ def simulate_model(model, r_vals, f_r):
     # observed velocity difference = component of psi along the line of sight
     psi_proj = psi * np.abs(np.sin(phi) * n_x + np.cos(phi) * n_y)
 
-    # --- Apply M8: rejection based on projected separation ------------------
-    rejection_probs = np.exp(r_proj / M8_SCALE_KPC) / np.exp(M8_RP_CUT / M8_SCALE_KPC)
-    keep_mask = np.random.rand(n_samples) > rejection_probs
+    # --- Apply M8: acceptance falls exponentially with projected separation --
+    accept_probs = np.exp(-r_proj / M8_SCALE_KPC)
+    keep_mask = np.random.rand(n_samples) < accept_probs
     r_proj_kept = r_proj[keep_mask]
     psi_proj_kept = psi_proj[keep_mask]
 

@@ -35,6 +35,11 @@ USE_R_CONDITIONING = True
 # moves when you add Monte Carlo samples is not measuring the data.
 _p = os.environ.get("PSI_RANGE_PCT", "none")
 PSI_RANGE_PCT = None if _p.lower() in ("none", "legacy") else float(_p)
+
+# Number of trial y values on [0.1, 500].  S87 step 3 gives the range but not
+# the sampling.  At 1000 points the step is 0.50, which is 11 per cent of y for
+# the q1 models (y ~ 4.6) and was coarse enough to tie f3 and f4.
+Y_GRID_N = int(os.environ.get("Y_GRID_N", "4000"))
 N_R_BINS = 8
 MIN_SIM_PER_BIN = 15
 
@@ -61,12 +66,25 @@ for col in ["type1", "type2", "r", "v", "L1", "L2", "M", "P"]:
 
 # Pull the per-row quantities out of the DataFrame once, instead of calling
 # df.iterrows() inside the y scan (5 x 3 x 1000 times over).
+def _sigma(x):
+    """Velocity error for ONE galaxy, falling back to the sample mean.
+
+    S87 sec. VI(b)ii step 5: "In cases with no multiple spectrograms available
+    to estimate the velocity error, the mean sample velocity error was
+    assigned."  That is per GALAXY.  The previous code wrapped both sigmas in
+    one try/except, so a pair with one measured error had it discarded and the
+    whole pair set to 9.0.  Of the 43 pairs, 18 have exactly one measured
+    sigma and were affected; 11 have neither and were given 9.0 instead of
+    sqrt(9^2 + 9^2) = 12.7.
+    """
+    try:
+        return float(x)
+    except (TypeError, ValueError):
+        return DEFAULT_SIGMA_V
+
 obs = []
 for _, row in df_obs.iterrows():
-    try:
-        sigma_v = np.sqrt(float(row["sigma1"])**2 + float(row["sigma2"])**2)
-    except (TypeError, ValueError):
-        sigma_v = DEFAULT_SIGMA_V
+    sigma_v = np.sqrt(_sigma(row["sigma1"])**2 + _sigma(row["sigma2"])**2)
     obs.append(dict(dv=row["v"], r=row["r"], L1=row["L1"] * 1e10, L2=row["L2"] * 1e10,
                     t1=row["type1"], t2=row["type2"], P=row["P"], sigma_v=sigma_v))
 
@@ -117,7 +135,7 @@ for model in psi_proj_samples:
         qA_all = np.array([q_func(np.array([o["t1"]]))[0] for o in obs])
         qB_all = np.array([q_func(np.array([o["t2"]]))[0] for o in obs])
 
-        for y in np.linspace(0.1, 500, 1000):
+        for y in np.linspace(0.1, 500, Y_GRID_N):
             n_over = 0
             u_values = []
             p_values = []
