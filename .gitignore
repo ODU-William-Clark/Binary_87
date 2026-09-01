@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+# regenerable outputs
+simulated_psi_data_test.npz
+ML_fit_results.csv
+best_fit_y_results.csv
+Binary_gal_97_with_probabilities.txt

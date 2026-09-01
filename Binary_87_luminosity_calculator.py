@@ -3,6 +3,11 @@ from astropy.coordinates import SkyCoord
 from astropy import units as u
 
 # Constants for LG apex motion from Schweizer (Yahil et al. 1977)
+#
+# NOTE ON THE DISTANCE SCALE: the numeric constants below (3.42e8 in
+# compute_luminosity, 40 in the r_p formula) encode H0 = 50 km/s/Mpc, the 1987
+# value.  Masses scale as 1/H0 and luminosities as 1/H0^2, so M/L scales as H0.
+# Multiply any M/L derived here by ~1.4 to put it on an H0 = 70 scale.
 V_SUN = 308.0  # km/s
 L_SUN = np.radians(105.0)
 B_SUN = np.radians(-7.0)
@@ -22,13 +27,6 @@ def correct_to_local_group(v_helio, l_deg, b_deg):
     l_rad = np.radians(l_deg)
     b_rad = np.radians(b_deg)
 
-    # cos_theta = (
-    #     np.sin(b_rad) * np.sin(B_SUN) +
-    #     np.cos(b_rad) * np.cos(B_SUN) * np.cos(l_rad - L_SUN)
-    # )
-
-    # v_lg = v_helio - V_SUN * cos_theta
-    
     v_lg = v_helio + V_SUN * (np.sin(b_rad)*np.sin(B_SUN) + np.cos(b_rad)*np.cos(B_SUN)*np.cos(l_rad - L_SUN))
     
     
@@ -54,6 +52,17 @@ def analyze_pair(ra_a, dec_a, ra_b, dec_b, v_a, v_b, m_a, m_b, theta):
     """
     Full analysis pipeline: coordinate conversion, LG velocity correction,
     luminosity calculation, and mean LG velocity test (no weighting).
+
+    Parameters
+    ----------
+    ra_*, dec_* : str
+        B1950 sexagesimal coordinates.
+    v_a, v_b : float
+        Heliocentric radial velocities, km/s.
+    m_a, m_b : float
+        Apparent magnitudes.
+    theta : float
+        Angular separation of the pair, in ARCMIN.
     """
     # Step 1: Convert coordinates
     l_a, b_a = b1950_to_galactic(ra_a, dec_a)
@@ -90,28 +99,29 @@ def analyze_pair(ra_a, dec_a, ra_b, dec_b, v_a, v_b, m_a, m_b, theta):
     }
 
 
-# -------------------
-# EXAMPLE USAGE GAL 1
-# -------------------
-# result = analyze_pair(
-#     ra_a="00h00m48s", dec_a="-11d02m50s",
-#     ra_b="00h00m58s", dec_b="-11d01m17s",
-#     v_a=8982.0,
-#     v_b=8923.0,
-#     m_a=14.04,
-#     m_b=13.60,
-#     theta = 2.88
-# )
+if __name__ == '__main__':
+    # -------------------
+    # EXAMPLE USAGE GAL 1
+    # -------------------
+    # result = analyze_pair(
+    #     ra_a="00h00m48s", dec_a="-11d02m50s",
+    #     ra_b="00h00m58s", dec_b="-11d01m17s",
+    #     v_a=8982.0,
+    #     v_b=8923.0,
+    #     m_a=14.04,
+    #     m_b=13.60,
+    #     theta = 2.88
+    # )
 
-# -------------------
-# EXAMPLE USAGE GAL 2
-# -------------------
-result = analyze_pair(
-    ra_a="00h03m47s", dec_a="-41d46m26s",
-    ra_b="00h03m53s", dec_b="-41d47m05s",
-    v_a=1562.0,
-    v_b=1428.0,
-    m_a=11.62,
-    m_b=14.73,
-    theta = 1.25
-)
+    # -------------------
+    # EXAMPLE USAGE GAL 2
+    # -------------------
+    result = analyze_pair(
+        ra_a="00h03m47s", dec_a="-41d46m26s",
+        ra_b="00h03m53s", dec_b="-41d47m05s",
+        v_a=1562.0,
+        v_b=1428.0,
+        m_a=11.62,
+        m_b=14.73,
+        theta = 1.25
+    )

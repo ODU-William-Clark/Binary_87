@@ -2,7 +2,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 # --- Compute r distribution using Lucy's deconvolution ---
-def get_r_distribution(n_bins=10000, r_min=0, r_max=1800, n_iter=10):
+def get_r_distribution(n_bins=10000, r_min=0, r_max=1500, n_iter=10):
     r_p_bins = np.linspace(r_min, r_max, n_bins)
     r_p_centers = 0.5 * (r_p_bins[1:] + r_p_bins[:-1])
 
@@ -35,3 +35,9 @@ def build_r_sampler(r_vals, f_r):
     cdf = np.cumsum(f_r)
     cdf /= cdf[-1]
     return interp1d(cdf, r_vals, bounds_error=False, fill_value=(r_vals[0], r_vals[-1]))
+
+
+
+
+
+
