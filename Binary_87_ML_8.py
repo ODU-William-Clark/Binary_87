@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
@@ -25,6 +27,14 @@ DEFAULT_SIGMA_V = 9.0   # km/s, Schweizer 1987 Paper I formal accuracy
 # observed and simulated r_p distributions differ.
 # Left False to reproduce the previous behaviour; set True to switch it on.
 USE_R_CONDITIONING = True
+
+# Upper edge of the psi histogram, as a percentile of the simulated sample.
+# Set to None for the legacy behaviour (max * 1.2), which is NOT recommended:
+# psi has a heavy tail (psi ~ r^-1/2), so the sample maximum -- and therefore
+# the bin width over the bulk -- drifts with n_samples.  A statistic that
+# moves when you add Monte Carlo samples is not measuring the data.
+_p = os.environ.get("PSI_RANGE_PCT", "none")
+PSI_RANGE_PCT = None if _p.lower() in ("none", "legacy") else float(_p)
 N_R_BINS = 8
 MIN_SIM_PER_BIN = 15
 
@@ -97,9 +107,8 @@ for model in psi_proj_samples:
         if len(g) < MIN_SIM_PER_BIN:
             pdfs.append(None)
             continue
-        # NOTE: the upper edge is set by the sample maximum, so a single
-        # outlier in the heavy psi tail sets the resolution of the whole grid.
-        hist, edges = np.histogram(g, bins=NBINS_PSI, range=(0, np.max(g) * 1.2))
+        hi = np.max(g) * 1.2 if PSI_RANGE_PCT is None else np.percentile(g, PSI_RANGE_PCT)
+        hist, edges = np.histogram(g, bins=NBINS_PSI, range=(0, hi))
         bc = 0.5 * (edges[:-1] + edges[1:])
         d = bc[1] - bc[0]
         pdfs.append((bc, d, hist / np.sum(hist * d)))
@@ -109,6 +118,7 @@ for model in psi_proj_samples:
         qB_all = np.array([q_func(np.array([o["t2"]]))[0] for o in obs])
 
         for y in np.linspace(0.1, 500, 1000):
+            n_over = 0
             u_values = []
             p_values = []
 
@@ -132,6 +142,8 @@ for model in psi_proj_samples:
                 cdf /= cdf[-1]
 
                 cdf_interp = interp1d(bin_centers, cdf, bounds_error=False, fill_value=(0, 1))
+                if psi_obs > bin_centers[-1]:
+                    n_over += 1
                 u_values.append(cdf_interp(psi_obs))
                 p_values.append(o["P"])
 
@@ -140,12 +152,12 @@ for model in psi_proj_samples:
                 total_weight = np.sum(hist_weighted)
                 expected_weight = total_weight / nb
                 chi_sq = np.sum((hist_weighted - expected_weight) ** 2 / expected_weight)
-                results.append((model, q_label, y, chi_sq))
+                results.append((model, q_label, y, chi_sq, n_over))
 
 # --------------------------------------------
 # Save Results
 # --------------------------------------------
-results_df = pd.DataFrame(results, columns=["f_model", "q_model", "y", "chi_squared"])
+results_df = pd.DataFrame(results, columns=["f_model", "q_model", "y", "chi_squared", "n_over"])
 results_df["reduced_chi_squared"] = results_df["chi_squared"] / (nb - 1)
 results_df["nb"] = nb
 results_df.to_csv("ML_fit_results.csv", index=False)

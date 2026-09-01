@@ -18,24 +18,33 @@ for f_model in f_models:
         subset = subset.sort_values("y")
         chi_min = subset["chi_squared"].min()
 
-        # Anchor on the RAW minimum of the scan.  Fitting a parabola over
-        # everything with chi2 <= 3*chi2_min pulls in the non-parabolic wings
-        # and can put the vertex outside the grid entirely (it produced a
-        # negative M/L for f1).  A parabola is only valid near the minimum, so
-        # fit over the delta-chi2 <= 1 region -- which is also the 1-sigma
-        # interval on y -- and fall back to the raw argmin if the vertex
-        # escapes that window.
+        # Schweizer 1987b, sec. VI(b)iii: "we fitted second-order polynomials
+        # to all points within 3 times the value of the minimum.  The minimum
+        # of the fitted polynomial was then designated as the 'best' value of
+        # y."  That window is kept here for fidelity.
+        #
+        # She reports the chi2(y) curves as "nearly parabolic".  Ours are not:
+        # chi2 is a step function of y (it jumps whenever a u value crosses one
+        # of the 5 cell boundaries) and shows many local minima within
+        # delta-chi2 < 2.  The parabola fit therefore fails on some models --
+        # a<=0, or a vertex off the grid.  Those cases fall back to the raw
+        # argmin rather than emitting a nonsense value (the unguarded version
+        # returned a NEGATIVE M/L for f1).  This is the main open discrepancy
+        # with the paper; see README.
         y_raw = subset.loc[subset["chi_squared"].idxmin(), "y"]
-        filtered = subset[subset["chi_squared"] <= chi_min + 1.0]
+        filtered = subset[subset["chi_squared"] <= 3 * chi_min]
 
         if len(filtered) < 3:
             continue
 
-        y_lo, y_hi = filtered["y"].min(), filtered["y"].max()
+        # delta-chi2 = 1 interval on y, reported as the uncertainty
+        near = subset[subset["chi_squared"] <= chi_min + 1.0]
+        y_lo, y_hi = near["y"].min(), near["y"].max()
+
         coeffs = np.polyfit(filtered["y"], filtered["chi_squared"], 2)
         a, b, c = coeffs
         y_best = -b / (2 * a) if a > 0 else y_raw
-        if not (y_lo <= y_best <= y_hi):
+        if not (filtered["y"].min() <= y_best <= filtered["y"].max()):
             y_best = y_raw
         chi_best = max(a * y_best**2 + b * y_best + c, chi_min)
         reduced_chi_best = chi_best / (nb - 1)

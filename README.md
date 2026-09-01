@@ -48,7 +48,9 @@ with `USE_R_CONDITIONING = True` and `n_samples = 500000`:
 | f5 = δ(0.9) | 32 | 28.5 | 24.6 – 31.6 | 0.81 |
 
 Her published result: **M/L_V = 21 ± 5 for Sc, 39 ± 9 for E** (H0 = 50), with
-f4(e) = 2e the preferred eccentricity distribution.
+f4(e) = 2e the preferred eccentricity distribution. Her formal error is **22%**
+per solution, so e.g. the f4/q3 entry is 24 ± 5 — most of the differences above
+are comparable to that.
 
 Verified as matching her recipe: steps M1–M8, the five eccentricity
 distributions (eqs. 43a–43e), the psi relation (eq. 44), the inverse
@@ -88,10 +90,26 @@ Judge the observed chi²_min against that distribution, not against 1.
 - **Minimum-separation cut.** Paper III (bias B5) applies *no* correction for
   pair overlap, so `min_separation_arcsec` is not part of her method. It is
   inert here regardless; set `APPLY_MIN_SEP = False` to drop it.
-- **psi histogram range** is set by the sample maximum, so it grows with
-  `n_samples` and the resolution over the bulk degrades. This is the most
-  likely remaining source of disagreement with Table 4 — use a high percentile
-  instead.
+- **Open discrepancy: the chi2(y) curve.** Schweizer reports her curves as
+  "nearly parabolic" and fits a second-order polynomial over `chi2 <= 3*chi2_min`
+  (sec. VI[b]iii). Ours are *jagged* — chi2 steps whenever a `u` value crosses
+  one of the 5 cell boundaries, giving many local minima within delta-chi2 < 2,
+  so the global argmin is unstable and the parabola fit sometimes fails. Things
+  tried that did **not** fix it: percentile-based psi histogram ranges
+  (`PSI_RANGE_PCT`, 98–99.9), Savitzky-Golay smoothing, and coarsening the y
+  grid. The likely real fix is a statistic that varies *continuously* with y —
+  Cramer-von Mises or Anderson-Darling on the `u` values, or a direct
+  likelihood `sum log f(psi_i | r_p,i, y)` — which removes the jaggedness at
+  its source and gives proper confidence intervals.
+- **psi histogram range** (`PSI_RANGE_PCT`) is set by the sample maximum by
+  default, matching the original code; the paper does not specify it. Note it
+  drifts with `n_samples`, so a high percentile is the statistically safer
+  choice even though it did not improve agreement with Table 4.
+- **Not yet run: her closure test.** Sec. VI(c) generates 10 synthetic samples
+  of 43 bound pairs on circular orbits with known M/L and recovers
+  `(M/L)_out/(M/L)_in = 1.03 +/- 0.07`, from which her quoted **22% formal
+  error** derives. Running the same test here is the right way to decide
+  whether the Table 4 differences are bias or noise.
 - **M8 rejection constants** (255, 800 kpc) are still unverified against her
   eq. (26).
 - **y grid** step is 0.5, which is coarse for `q1` where y ~ 5.
