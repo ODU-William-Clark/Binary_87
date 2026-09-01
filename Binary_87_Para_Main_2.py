@@ -8,7 +8,7 @@ from Binary_87_psi import sample_psi
 
 G = 4.30091e-6  # kpc * (km/s)^2 / M_sun
 ecc_models = ['f1', 'f2', 'f3', 'f4', 'f5']
-n_samples = 10000
+n_samples = 500000
 
 # --- M8 selection function -------------------------------------------------
 # Probability of REJECTING a pair rises exponentially with projected

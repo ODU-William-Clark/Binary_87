@@ -15,22 +15,38 @@ for f_model in f_models:
     for q_model in q_models:
         subset = df[(df['f_model'] == f_model) & (df['q_model'] == q_model)]
 
+        subset = subset.sort_values("y")
         chi_min = subset["chi_squared"].min()
-        filtered = subset[subset["chi_squared"] <= 3 * chi_min]
+
+        # Anchor on the RAW minimum of the scan.  Fitting a parabola over
+        # everything with chi2 <= 3*chi2_min pulls in the non-parabolic wings
+        # and can put the vertex outside the grid entirely (it produced a
+        # negative M/L for f1).  A parabola is only valid near the minimum, so
+        # fit over the delta-chi2 <= 1 region -- which is also the 1-sigma
+        # interval on y -- and fall back to the raw argmin if the vertex
+        # escapes that window.
+        y_raw = subset.loc[subset["chi_squared"].idxmin(), "y"]
+        filtered = subset[subset["chi_squared"] <= chi_min + 1.0]
 
         if len(filtered) < 3:
-            continue  # Avoid fitting if too few points
+            continue
 
+        y_lo, y_hi = filtered["y"].min(), filtered["y"].max()
         coeffs = np.polyfit(filtered["y"], filtered["chi_squared"], 2)
         a, b, c = coeffs
-        y_best = -b / (2 * a)
-        chi_best = a * y_best**2 + b * y_best + c
+        y_best = -b / (2 * a) if a > 0 else y_raw
+        if not (y_lo <= y_best <= y_hi):
+            y_best = y_raw
+        chi_best = max(a * y_best**2 + b * y_best + c, chi_min)
         reduced_chi_best = chi_best / (nb - 1)
 
         best_y_results.append({
             "f_model": f_model,
             "q_model": q_model,
             "y_best": y_best,
+            "y_raw_argmin": y_raw,
+            "y_lo": y_lo,
+            "y_hi": y_hi,
             "chi_squared_best": chi_best,
             "reduced_chi_squared_best": reduced_chi_best
         })

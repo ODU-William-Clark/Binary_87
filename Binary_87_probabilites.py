@@ -50,10 +50,12 @@ def min_separation_arcsec(m_bright, m_faint):
     Units were also wrong: dtheta is in radians, while this expression yields
     ~5 arcsec at equal magnitudes.  The caller now converts explicitly.
 
-    Two things still need confirming from Paper III: the grouping, and the
-    sign of the magnitude-difference term.  A blending criterion arguably
-    wants a LARGER minimum separation for a more unequal pair, which would
-    make the term +0.13*(m_n - m_br).
+    RESOLVED (Paper III, sec. Va, bias B5): Schweizer applies NO correction
+    for pair overlap -- she argues the effect is small (probability 0.13, 0.06,
+    0.03 for r_p = 10 kpc at r = 20, 30, 40 kpc) and notes many overlapping
+    pairs remain clearly resolvable.  So this cut is not part of her method.
+    It is inert here in any case (simulated pairs never land within ~5 arcsec),
+    but set APPLY_MIN_SEP = False to drop it entirely.
     """
     return 10.0 ** (0.72 - 0.13 * (m_faint - m_bright))
 

@@ -34,11 +34,38 @@ uniformity is scanned over `y`, and the minimum taken as the best fit.
 
 Run `Binary_87_Para_Main_2.py` before `Binary_87_ML_8.py`.
 
+## Comparison with Schweizer's published values
+
+Paper III Table 4, `q3` column (M/L = y directly, H0 = 50), against this code
+with `USE_R_CONDITIONING = True` and `n_samples = 500000`:
+
+| ecc model | Schweizer M/L | this code | 1-sigma range | Schweizer chi2_nu |
+|---|---|---|---|---|
+| f1 (circular) | 13 | 8.8 | 7.1 – 15.1 | 0.95 |
+| f2 = 2(1−e) | 15 | 9.2 | 8.1 – 19.6 | 0.85 |
+| f3 = 1 | 21 | 20.6 | 12.6 – 20.6 | 0.84 |
+| f4 = 2e | 24 | 16.6 | 16.6 – 24.1 | 0.62 |
+| f5 = δ(0.9) | 32 | 28.5 | 24.6 – 31.6 | 0.81 |
+
+Her published result: **M/L_V = 21 ± 5 for Sc, 39 ± 9 for E** (H0 = 50), with
+f4(e) = 2e the preferred eccentricity distribution.
+
+Verified as matching her recipe: steps M1–M8, the five eccentricity
+distributions (eqs. 43a–43e), the psi relation (eq. 44), the inverse
+transformation method, the lognormal f(r_p) (eq. 39), r drawn independently of
+orbital phase over 0.01–1.5 Mpc (M5), nb = 5, and dof = nb − 1.
+
 ## Reading the chi-square
 
 `Binary_87_Chi_Square_3.py` reports the **minimum** of chi-square over the `y`
 scan. A minimum is biased low, so it must not be compared against the degrees
 of freedom — **a correct model does not give reduced chi-square ≈ 1 here.**
+
+Schweizer's own Table 4 values run **0.53 to 1.02**, and she selects the model
+with the *lowest* chi2_nu (f4, at 0.53), not the one nearest unity. Her
+remark that "in chi2 tests with a good fit, chi2_nu should ideally be
+approximately equal to unity" is the textbook ideal, not what her analysis
+achieves. Do not tune binning to reach 1.
 
 A parametric bootstrap (`Binary_87_calibrate_chi2.py`, f4/q3, 400 synthetic
 samples drawn from the model at its own best-fit y) gives:
@@ -58,13 +85,16 @@ Judge the observed chi²_min against that distribution, not against 1.
   and L ∝ 1/H0², so **M/L ∝ H0** — multiply by ~1.4 for H0 = 70.
 - **Colour band.** The distributions and M/L values are specific to the
   magnitude/colour band used here; other bands need different inputs.
-- **Unverified selection cut.** `min_separation_arcsec` in
-  `Binary_87_probabilites.py` needs checking against Paper III — both the
-  grouping of the exponent and the sign of the magnitude-difference term. It
-  is currently inert (simulated pairs never land within ~5 arcsec).
-- **r and orbital phase** are sampled independently in `Binary_87_psi.py`; for
-  a true orbit `r = a(1 − e·cos E)` links them. Inherited from the original
-  implementation, still to be checked against Paper III.
+- **Minimum-separation cut.** Paper III (bias B5) applies *no* correction for
+  pair overlap, so `min_separation_arcsec` is not part of her method. It is
+  inert here regardless; set `APPLY_MIN_SEP = False` to drop it.
+- **psi histogram range** is set by the sample maximum, so it grows with
+  `n_samples` and the resolution over the bulk degrades. This is the most
+  likely remaining source of disagreement with Table 4 — use a high percentile
+  instead.
+- **M8 rejection constants** (255, 800 kpc) are still unverified against her
+  eq. (26).
+- **y grid** step is 0.5, which is coarse for `q1` where y ~ 5.
 - Statistical choices left as-is and worth revisiting: `nb = 5`, dof of `nb−1`
   (fitting `y` costs one), the parabola fitted over `chi² ≤ 3·chi²_min`, and
   the psi histogram range set by the sample maximum.

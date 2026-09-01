@@ -24,7 +24,7 @@ DEFAULT_SIGMA_V = 9.0   # km/s, Schweizer 1987 Paper I formal accuracy
 # psi_p and ignoring it both weakens the uniformity test and biases it if the
 # observed and simulated r_p distributions differ.
 # Left False to reproduce the previous behaviour; set True to switch it on.
-USE_R_CONDITIONING = False
+USE_R_CONDITIONING = True
 N_R_BINS = 8
 MIN_SIM_PER_BIN = 15
 
