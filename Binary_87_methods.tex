@@ -19,287 +19,427 @@ A Reproduction of Schweizer (1987)}
 \noindent
 We reproduce the binary-galaxy mass-to-light analysis of Schweizer (1987,
 ApJS 64, 427; hereafter S87, with Papers I and II at ApJS 64, 411 and 417).
-This note is written so the result can be regenerated from scratch.
-Section~\ref{sec:method} summarises the method, Section~\ref{sec:repro} gives
-the exact recipe, and Section~\ref{sec:dev} lists every point at which we
-depart from S87, classified as either a deliberate \emph{improvement} or a
-\emph{liberty} taken where the paper does not specify enough detail. Code:
+Recovered \ML{} values agree with her Table~4 to a median ratio of 0.989
+(mean 1.004, scatter 8.9\%); all 30 entries fall within her quoted 22\% formal
+error. This note is written to be read alongside S87 --- it does not restate
+her derivations --- but it specifies everything needed to regenerate our
+numbers. Section~\ref{sec:method} summarises the method and why it works,
+\S\ref{sec:repro} gives the recipe, \S\ref{sec:corr} lists defects we found in
+our own code, and \S\ref{sec:dev} lists every remaining departure from S87,
+classified as a deliberate \emph{improvement} or a \emph{liberty} taken where
+the paper is silent. Code:
 \url{https://github.com/ODU-William-Clark/Binary_87}.
 \end{abstract}
 
 \section{Method}
 \label{sec:method}
 
-For a Keplerian pair of total mass $M$ at separation $r$ with eccentricity $e$
-and eccentric anomaly $E$, $v^2 = GM(1+e\cos E)/r$, so the quantity
+\subsection{Why a pair of galaxies can be weighed}
+
+Two galaxies bound to one another orbit their common centre of mass, and the
+speed of that orbit is set by the mass enclosing it. If we could watch a pair
+around a full orbit we could weigh it directly. We cannot: each pair is seen
+once, at one instant, from one direction. Three things are therefore hidden.
+We measure the \emph{projected} separation $r_p$ --- the component of the true
+three-dimensional separation $r$ perpendicular to the line of sight, so
+$r_p \le r$ --- and only the \emph{radial} velocity difference $\Delta v$, the
+component of the relative velocity along the line of sight. And we never see
+the orbit's eccentricity, because an instantaneous snapshot does not trace a
+path.
+
+The way through is statistical. For a Keplerian pair of total mass $M$ at
+separation $r$ with eccentricity $e$ and eccentric anomaly $E$ (the angle
+parameterising position around the orbit), the vis-viva relation
+$v^2 = GM(2/r - 1/a)$ with $r = a(1-e\cos E)$ gives $v^2 = GM(1+e\cos E)/r$.
+Hence
 \begin{equation}
-\Psi \;\equiv\; \frac{|\Delta v|}{\sqrt{M}}
+\Psi \;\equiv\; \frac{v}{\sqrt{M}}
 \;=\; \left[\frac{G\,(1+e\cos E)}{r}\right]^{1/2}
 \label{eq:psi}
 \end{equation}
-carries no dependence on the mass. S87 builds the distribution of the projected
-$\Psi_p$ by Monte Carlo, conditional on projected separation $r_p$, then asks
-for which trial \ML{} the observed sample is consistent with being drawn from
-it.
+depends only on the geometry of the orbit, not on the mass.
 
-Writing $M_i = y\,[\,q(t_1)L_1 + q(t_2)L_2\,]_i$ for pair $i$, where $q(t)$ is a
-morphology-dependent \ML{} shape and $y$ the scaling being fitted, one forms
+\textbf{That is the whole trick.} Because $\Psi$ is mass-free, a Monte Carlo
+can predict its distribution --- and the distribution of its projection
+$\Psi_p$ --- from assumed distributions of separation and eccentricity alone,
+with no knowledge of any masses. The observations supply $\Delta v$ and $r_p$.
+The only quantity linking the two is the mass, so demanding that the observed
+sample look like a random draw from the predicted distribution \emph{measures}
+the mass. Eccentricity cannot be measured per system, so a population
+distribution $f(e)$ must be posited instead; S87 tries five, chosen to bracket
+the plausible range from circular to nearly radial.
+
+\subsection{The statistic}
+
+Throughout, $\Delta v$ denotes the \emph{observed} line-of-sight velocity
+difference and $r_p$ the observed sky-plane separation. The projected,
+observable counterpart of eq.~(\ref{eq:psi}) is
 \begin{equation}
-u_i \;=\; \Phi\!\left(\Psi_{\mathrm{obs},i} \,\middle|\, r_{p,i},\ \mathrm{model}\right),
-\qquad
-\Psi_{\mathrm{obs},i} = \frac{\Delta v_i}{\sqrt{M_i}} ,
+\Psi_p \;\equiv\; \frac{|\Delta v|}{\sqrt{M}} ,
 \end{equation}
-with $\Phi$ the cumulative conditional distribution, convolved with a Gaussian
-of width $\sigma_{v,i}/\sqrt{M_i}$ to carry the velocity errors. If $y$ is
-correct the $u_i$ are uniform on $[0,1]$. Uniformity is tested with a $\chi^2$
+and the pair $(r_p, \Psi_p)$ is what can be compared with data.
+
+Masses are parameterised as $M_i = y\,[\,q(t_1)L_1 + q(t_2)L_2\,]_i$ for pair
+$i$, where $t$ is de Vaucouleurs morphological type (negative for early types:
+$t=-5$ is an elliptical, $t=+5$ an Sc), $q(t)$ is an assumed \ML{} shape, and
+$y$ the scaling to be fitted. Luminosities are visual isophotal, in solar
+units, so \ML{} is $\mathcal{M}/L_V$ in solar units throughout. One then forms
+\begin{equation}
+u_i \;=\; \Phi\!\left(\Psi_{p,i}^{\rm obs} \,\middle|\, r_{p,i},\ \mathrm{model}\right),
+\qquad
+\Psi_{p,i}^{\rm obs} = \frac{|\Delta v_i|}{\sqrt{M_i}} ,
+\label{eq:u}
+\end{equation}
+where $\Phi$ is the cumulative distribution of $\Psi_p$ \emph{conditional on}
+that pair's separation, convolved with a Gaussian of width
+$\sigma_{v,i}/\sqrt{M_i}$ to carry the velocity errors. Conditioning on $r_p$
+matters: $\Psi \propto r^{-1/2}$, so $r_p$ is the strongest single predictor of
+$\Psi_p$.
+
+Equation~(\ref{eq:u}) is the probability integral transform: if a value is
+drawn from a distribution and mapped through that distribution's own CDF, the
+result is uniform on $[0,1]$. So if $y$ is correct the $u_i$ are uniform, and
+if $y$ is wrong they pile up at one end. Uniformity is tested with a $\chi^2$
 over five equal cells, accumulating the bound-pair probabilities $P(B|C_i)$
-rather than integer counts, and $y$ is scanned to minimise $\chi^2$.
+--- the posterior probability that pair $i$ is physically bound rather than a
+chance projection --- instead of integer counts. Scanning $y$ and minimising
+$\chi^2$ gives the best fit.
 
 The five eccentricity distributions are $f_1(e)=\delta(0)$, $f_2=2(1-e)$,
-$f_3=1$, $f_4=2e$, $f_5=\delta(0.9)$ (S87 eqs.~43a--43e), and the three
-morphology functions are $q_1(t)=6.47-0.39t$, $q_2(t)=2$ for $t\le0$ and $1$
-otherwise, and $q_3(t)=1$ (eqs.~46a--46c).
+$f_3=1$, $f_4=2e$, $f_5=\delta(0.9)$ (S87 eqs.~43a--43e); the three morphology
+functions are $q_1(t)=6.47-0.39t$ (Faber \& Gallagher 1979), $q_2(t)=2$ for
+$t\le0$ and $1$ otherwise, and $q_3(t)=1$ (eqs.~46a--46c). Note the ordering
+constraint these imply: $\langle 1+e\cos E\rangle$ = 1.000, 0.917, 0.835,
+0.750, 0.596 for $f_1 \ldots f_5$, and $M \propto \langle 1+e\cos
+E\rangle^{-1}$, so \textbf{\ML{} must increase monotonically from $f_1$ to
+$f_5$}. We use this as a convergence test in \S\ref{sec:results}.
 
-\section{Reproduction recipe}
+\section{Data and reproduction recipe}
 \label{sec:repro}
 
-\paragraph{Data.} 48 southern pairs (96 galaxies) with radial velocities from
-Paper I and $K$-magnitudes and $B\!-\!V$ from Paper II, tabulated in
-\texttt{Binary\_gal\_87.txt}. After the $P(B|C)>0.5$ cut, $N=43$ pairs enter
-the fit, matching S87.
+\paragraph{Data provenance --- important.} \texttt{Binary\_gal\_87.txt} is a
+direct transcription of S87 Table~1 (and Table~2 for $P(B|C)$), not a
+recomputation. Its columns are: pair index; $t_1,t_2$; $\theta$ (arcmin);
+$r_p$ (kpc); $|\Delta v|$ (km\,s$^{-1}$); $L_1, L_2$ (units of
+$10^{10}L_\odot$); a reference mass; $P(B|C)$; and $\sigma_1,\sigma_2$
+(km\,s$^{-1}$, with \texttt{...} for missing). The observational reduction
+chain --- B1950 to galactic coordinates, the Local Group apex correction, and
+S87 eqs.~(10)--(12) for $L$, $r_p$ and $\Delta v_p$ --- is therefore
+\emph{not} exercised by this pipeline.
+\texttt{Binary\_87\_luminosity\_calculator.py} implements it and can be used to
+audit individual entries, but nothing downstream depends on it. Likewise
+\texttt{Binary\_87\_probabilites.py} recomputes $P(B|C)$, but the fit reads
+S87's published values from the data file; that script is diagnostic only.
+The sample is 48 pairs (96 galaxies); S87 \S Vc excludes the five with
+$\Delta v > 2500$\,km\,s$^{-1}$ and $P(B|C)=0.15$ (pairs 18, 22, 23, 36, 40),
+leaving $N=43$. Our $P>0.5$ cut removes exactly those five.
 
 \paragraph{Environment.} Python 3 with \texttt{numpy}, \texttt{scipy},
-\texttt{pandas}, \texttt{matplotlib}, \texttt{astropy}.
+\texttt{pandas}, \texttt{matplotlib}, \texttt{astropy}. The intermediate
+\texttt{.npz} is $\approx$106\,MB.
 
 \paragraph{Order of execution.}
 \begin{enumerate}\itemsep2pt
-  \item \texttt{Binary\_87\_luminosity\_calculator.py} --- B1950 coordinates to
-        galactic, correction to the Local Group standard of rest (apex
-        $V_\odot = 308$\,km\,s$^{-1}$, $l=105^\circ$, $b=-7^\circ$; Yahil
-        et al.\ 1977), then $L$, $r_p$ and $v_p$ per pair.
-  \item \texttt{Binary\_87\_probabilites.py} --- simulates fields of optical
-        (chance) pairs and returns $P(B|C)$ per velocity bin via Bayes'
-        theorem.
   \item \texttt{Binary\_87\_r\_distro.py} --- Lucy deconvolution of the
-        lognormal $f(r_p)=\exp[-0.63(\ln r_p - 4.32)^2]$ (S87 eq.~39) into the
-        spatial distribution $f(r)$.
+        lognormal $f(r_p) \propto r_p^{-1}\exp[-0.63(\ln r_p - 4.32)^2]$
+        (S87 eqs.~38--39) into the spatial $f(r)$. Imported, not run directly.
+  \item \texttt{Binary\_87\_psi.py} --- Kepler orbits and $\Psi$ sampling.
+        Imported, not run directly.
   \item \texttt{Binary\_87\_Para\_Main\_2.py} --- Monte Carlo ensembles
-        (S87 steps M1--M8), writing \texttt{simulated\_psi\_data\_test.npz}.
-  \item \texttt{Binary\_87\_ML\_8.py} --- the $y$ scan, writing
-        \texttt{ML\_fit\_results.csv}.
-  \item \texttt{Binary\_87\_Chi\_Square\_3.py} --- best-fit $y$ per model.
-  \item \texttt{Binary\_87\_calibrate\_chi2.py} --- parametric bootstrap of the
-        minimised $\chi^2$ (see \S\ref{sec:chi2}).
+        (S87 steps M1--M8) $\rightarrow$
+        \texttt{simulated\_psi\_data\_test.npz}. ($\approx$6\,s)
+  \item \texttt{Binary\_87\_ML\_8.py} --- the $y$ scan $\rightarrow$
+        \texttt{ML\_fit\_results.csv}. ($\approx$140\,s)
+  \item \texttt{Binary\_87\_Chi\_Square\_3.py} --- best-fit $y$ per model
+        $\rightarrow$ \texttt{best\_fit\_y\_results.csv}.
+  \item \texttt{Binary\_87\_calibrate\_chi2.py} --- bootstrap calibration,
+        confidence intervals, and the closure test (\S\ref{sec:chi2}).
 \end{enumerate}
 
-\paragraph{Configuration used.} \texttt{n\_samples} $=5\times10^5$;
-\texttt{nb} $=5$ cells; \texttt{NBINS\_PSI} $=50$;
-\texttt{USE\_R\_CONDITIONING} $=$ True with \texttt{N\_R\_BINS} $=8$ quantile
-bins; \texttt{PSI\_RANGE\_PCT} $=$ None (upper histogram edge at
-$1.2\max\Psi_p$); $y$ grid of 1000 linear points on $[0.1,500]$;
-$H_0 = 50$\,km\,s$^{-1}$\,Mpc$^{-1}$; $r \in [10,1500]$\,kpc;
-\texttt{APPLY\_MIN\_SEP} $=$ False for fidelity to S87
-(Table~\ref{tab:dev}). Runtimes: step 2 $\approx 9$\,s, step 4 $\approx 7$\,s,
-step 5 $\approx 35$\,s.
+\paragraph{Configuration.} \texttt{n\_samples} $=5\times10^5$;
+\texttt{nb} $=5$ cells; \texttt{NBINS\_PSI} $=50$ with the upper edge at
+$1.2\max\Psi_p$ (\texttt{PSI\_RANGE\_PCT} unset); \texttt{USE\_R\_CONDITIONING}
+$=$ True with \texttt{N\_R\_BINS} $=8$ quantile bins; \texttt{Y\_GRID\_N}
+$=4000$ linear points on $[0.1,500]$; $H_0 =
+50$\,km\,s$^{-1}$\,Mpc$^{-1}$; $r \in [10,1500]$\,kpc; Lucy \texttt{n\_iter}
+$=5$. \texttt{PSI\_RANGE\_PCT} and \texttt{Y\_GRID\_N} are read from
+environment variables of the same name.
 
 \section{Corrections to our own implementation}
+\label{sec:corr}
 
-These are not departures from S87 --- they are defects in our code that were
-returning us \emph{to} her method. They are recorded because they change the
-answer materially.
+These are not departures from S87. They are defects in our own code;
+correcting each moved us back toward her method. We record them because they
+changed the answer materially.
 
-\begin{enumerate}\itemsep3pt
+\begin{enumerate}\itemsep4pt
   \item \textbf{Projection geometry.} S87 step M7 projects $r$ onto the plane
-        of the sky and $\Psi$ onto the line of sight using a single random
-        orientation. We had been drawing two independent angles, uniform in
-        angle rather than uniform on the sphere. Validation of the corrected
-        code: $\langle r_p/r \rangle = 0.7856$ (exact $\pi/4 = 0.7854$),
+        of the sky and $\Psi$ onto the line of sight using a \emph{single}
+        random orientation. We had drawn two independent angles, uniform in
+        angle rather than uniform on the sphere. Corrected:
+        $\langle r_p/r \rangle = 0.7856$ (exact $\pi/4 = 0.7854$),
         $\langle (r_p/r)^2 \rangle = 0.6669$ (exact $2/3$),
-        $\langle (\Psi_p/\Psi)^2 \rangle = 0.3334$ (exact $1/3$); the previous
-        version gave $0.637$, $0.500$ and $0.500$. At fixed $r$ the true
-        correlation is $\mathrm{corr}(r_p,\Psi_p) = +0.17$, where the old code
-        gave $-0.0008$. Best-fit $y$ rose by a median factor $1.84$.
+        $\langle (\Psi_p/\Psi)^2 \rangle = 0.3334$ (exact $1/3$); previously
+        $0.637$, $0.500$, $0.500$ --- a 50\% error in the second moment.
+  \item \textbf{M8 selection function.} S87 eq.~(25) gives the
+        \emph{reciprocal} correction $\nu^{-1}(r_p) \propto \mathrm{dex}(-0.0017 r_p)$
+        for physical pairs accidentally excluded, so eq.~(26)'s
+        $\nu = c\exp(r_p/255\,\mathrm{kpc})$ implies an acceptance
+        $\propto \exp(-r_p/255)$. We had used
+        $1 - \exp[(r_p-800)/255]$, nearly flat out to an invented hard wall at
+        800\,kpc (no such cutoff appears in the paper). Corrected, the kept
+        fraction falls from 92\% to 69.5\%, the simulated $r_p$ median moves
+        from 74.1 to 59.5\,kpc against an observed 54.5, and the fraction of
+        simulated pairs beyond the observed maximum halves from 13\% to 6.8\%.
+        This was the single largest contributor to our residual disagreement
+        with Table~4.
+  \item \textbf{Velocity errors assigned per pair instead of per galaxy.} S87
+        step 5 assigns the mean sample error where no multiple spectrograms
+        exist --- per galaxy. A single \texttt{try/except} around
+        $\sqrt{\sigma_1^2+\sigma_2^2}$ meant that a pair with one measured
+        error had it discarded. Of the 43 pairs, 14 have both errors, 18 have
+        exactly one, and 11 have neither; the 18 were wrongly set to
+        9\,km\,s$^{-1}$, and the 11 to 9 rather than $\sqrt{2}\times9 = 12.7$.
   \item \textbf{Conditional rather than marginal PDF.} S87 step M8 histograms
-        the ensemble jointly in $r_p$ and $\Psi_p$, and step 7 of her inverse
-        transformation evaluates $\Phi(\Psi_p \,|\, r_p, \mathrm{model})$. We
-        had been using the marginal $\Psi_p$ distribution.
-  \item \textbf{Sampled $r$ was overwritten} by an independent redraw after
+        the ensemble jointly in $r_p$ and $\Psi_p$ and slices at each pair's
+        $r_{p,i}$. We had used the marginal $\Psi_p$ distribution.
+  \item \textbf{Lucy deconvolution.} S87 \S Ve states ``a close approximation
+        to $f(r_p)$ was achieved after cycling through five iterations''; we
+        used ten. Separately, Lucy's normalisation requires
+        $\int_0^r K(r_p|r)\,dr_p = 1$, but our $r_p$ grid began at
+        $r_{\min}=10$\,kpc, so the integral was 0.00 at $r=r_{\min}$ and 0.44
+        at 11.5\,kpc and $f(r)$ decayed without bound as iterations increased.
+        With the grid starting at 0, $P(r<25\,\mathrm{kpc})$ converges
+        (0.0339, 0.0303, 0.0288, 0.0287 at 5, 10, 20, 50 iterations). An exact
+        $r = r_p$ coincidence also produced \texttt{inf} and is now guarded.
+  \item \textbf{Sampled $r$ overwritten} by an independent redraw after
         projection, decoupling the stored $r$ from the stored $\Psi$.
-  \item \textbf{Velocities in the optical-pair simulation} were drawn once per
-        \emph{pair}, so a galaxy received independent velocities for every
-        partner it was paired with. Now drawn once per galaxy.
-  \item \textbf{Polynomial window.} S87 \S VI(b)iii fits a second-order
-        polynomial over all points with $\chi^2 \le 3\chi^2_{\min}$. We had
-        briefly narrowed this to $\Delta\chi^2 \le 1$; restored.
+  \item \textbf{$y$ grid too coarse.} At 1000 points the step is 0.50, which is
+        11\% of $y$ for the $q_1$ models and tied $f_3$ with $f_4$, breaking
+        the monotonicity test of \S\ref{sec:method}. At 4000 points they
+        separate (4.23 vs 4.73) and all three $q$ columns are monotonic.
+  \item \textbf{Bin width in the calibration script.} With $r_p$ conditioning
+        each group has its own histogram range, hence its own bin width. Using
+        one group's width for all pairs mislocated $\Psi_p^{\rm obs}$ on the
+        CDF grid and biased the recovered $y$ by a factor of $\sim$3.
+  \item \textbf{Numerical.} Vectorised Newton--Raphson for Kepler's equation
+        (residual $8.9\times10^{-16}$) in place of a generic root finder, and
+        the $r$ distribution computed once rather than in every worker process.
 \end{enumerate}
 
 \section{Departures from S87}
 \label{sec:dev}
 
-\begin{longtable}{p{0.24\textwidth} p{0.46\textwidth} p{0.20\textwidth}}
-\caption{Where this work differs from S87.}\label{tab:dev}\\
+\subsection{Deliberate improvements}
+
+\begin{longtable}{p{0.26\textwidth} p{0.68\textwidth}}
 \toprule
-\textbf{Item} & \textbf{What we do} & \textbf{Class} \\
+\textbf{Item} & \textbf{What we do, and why} \\
 \midrule
 \endfirsthead
-\multicolumn{3}{l}{\small\itshape Table~\ref{tab:dev} continued}\\
 \toprule
-\textbf{Item} & \textbf{What we do} & \textbf{Class} \\
+\textbf{Item} & \textbf{What we do, and why} \\
 \midrule
 \endhead
 \bottomrule
 \endfoot
 
-Degenerate polynomial fits &
-Fall back to the raw $\arg\min$ of the scan when the fitted parabola has
-$a \le 0$ or its vertex lies off the grid. S87 reports her $\chi^2(y)$ curves
-as ``nearly parabolic'' and does not discuss failures; ours are not, and the
-unguarded fit returned a \emph{negative} \ML{} for $f_1$. &
-\textbf{Improvement} \\[4pt]
+Confidence intervals on $y$ &
+We report bootstrap intervals. S87 adopts a single 22\% formal error for all
+solutions, from a closure test on 10 circular-orbit samples (\S VI[c]). A
+$\Delta\chi^2=1$ interval is \emph{not} available here: because $\chi^2$ steps
+whenever a $u_i$ crosses a cell boundary, the sublevel set is disconnected ---
+up to five disjoint blocks in our runs --- so its extrema are the convex hull
+of a set with holes, not an interval. \\[4pt]
 
-Uncertainty on $y$ &
-We report the $\Delta\chi^2 = 1$ interval per model, in addition to her
-polynomial-fit 95\% interval. S87 instead adopts a single 22\% formal error
-for all solutions, taken from her closure test (\S VI[c]). &
-\textbf{Improvement} \\[4pt]
-
-Interpretation of $\chi^2_\nu$ &
+Calibration of $\chi^2_\nu$ &
 We calibrate the \emph{minimised} $\chi^2$ by parametric bootstrap rather than
-comparing it against unity (\S\ref{sec:chi2}). &
-\textbf{Improvement} \\[4pt]
+comparing it against unity (\S\ref{sec:chi2}). \\[4pt]
 
-Kepler solver &
-Vectorised Newton--Raphson (residual $8.9\times10^{-16}$) in place of a generic
-root finder. Numerical only; no change to the science. &
-\textbf{Improvement} \\[4pt]
+Closure test &
+Extended from S87's 10 circular-orbit samples to 300 samples for each of the
+five eccentricity models, using the fitted conditional PDFs
+(\S\ref{sec:chi2}). \\[4pt]
 
-Minimum-separation cut &
-S87 bias B5 applies \emph{no} correction for pair overlap. Our code retains an
-optional cut (\texttt{APPLY\_MIN\_SEP}) whose functional form we could not
-source; it is inert at these separations and should be left off. &
-\textbf{Liberty} (unused) \\[4pt]
+Degenerate polynomial fits &
+S87 \S VI(b)iii fits a second-order polynomial over $\chi^2 \le 3\chi^2_{\min}$
+and reports its vertex. She describes her curves as ``nearly parabolic''; ours
+are not, and the unguarded fit returned a negative \ML{} for $f_1$. We keep her
+window but fall back to the raw $\arg\min$ when the fit degenerates, and quote
+the raw $\arg\min$ in \S\ref{sec:results}. \\
+\end{longtable}
+
+\subsection{Liberties taken where S87 is silent}
+
+\begin{longtable}{p{0.26\textwidth} p{0.68\textwidth}}
+\toprule
+\textbf{Item} & \textbf{What we do} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Item} & \textbf{What we do} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
 
 Monte Carlo ensemble size &
-$5\times10^5$ per model. S87 does not state hers; with 8 $r_p$ bins, $10^4$
-samples leaves only ${\sim}23$ per $\Psi_p$ bin. &
-\textbf{Liberty} \\[4pt]
+$5\times10^5$ per model. With 8 $r_p$ bins, $10^4$ samples leaves only
+${\sim}23$ per $\Psi_p$ bin. \\[4pt]
 
 $\Psi_p$ histogram binning &
-50 bins, upper edge at $1.2\max\Psi_p$. Unspecified in S87. Note this edge
-drifts with \texttt{n\_samples}; a high percentile
-(\texttt{PSI\_RANGE\_PCT}) is available and is statistically safer, though it
-did not improve agreement with her Table~4. &
-\textbf{Liberty} \\[4pt]
+50 bins with the upper edge at $1.2\max\Psi_p$. This edge drifts with
+\texttt{n\_samples}; a percentile alternative is available via
+\texttt{PSI\_RANGE\_PCT} and is statistically safer, but did not improve
+agreement with Table~4 and is not the shipped default. \\[4pt]
 
 $r_p$ conditioning resolution &
-8 quantile bins in $r_p$. S87 states only that the ensemble is ``histogrammed
-in $r_p$ and $\Psi_p$''; the grid is not given. &
-\textbf{Liberty} \\[4pt]
+8 quantile bins. S87 states only that the ensemble is ``histogrammed in $r_p$
+and $\Psi_p$''; the grid is not given. \\[4pt]
 
 $y$ grid &
-1000 linear points on $[0.1,500]$. S87 gives the range but not the sampling.
-The step of $0.5$ is coarse for $q_1$, where $y \sim 5$. &
-\textbf{Liberty} \\[4pt]
-
-Lucy deconvolution &
-10 iterations on a $10^4$-point grid. S87 Fig.~15 displays the \emph{fifth}
-iterative approximation, so she may have used 5. &
-\textbf{Liberty} \\[4pt]
-
-M8 rejection function &
-$P_{\mathrm{reject}}(r_p) = \exp(r_p/255)\,/\,\exp(800/255)$, i.e.\ everything
-wider than 800\,kpc removed. We could not verify these constants against her
-eq.~(26). &
-\textbf{Liberty} \\[4pt]
+4000 linear points on $[0.1,500]$. S87 gives the range (step 3) but not the
+sampling. \\[4pt]
 
 Optical-pair field model &
-50--150 galaxies per $10^\circ \times 10^\circ$ field, magnitudes uniform on
-$[9,18]$, positions Poisson. Real galaxies are clustered, so the chance-pair
-rate is underestimated and $P(B|C)$ is biased high. &
-\textbf{Liberty} \\[4pt]
-
-Fallback velocity error &
-$\sigma_v = 9$\,km\,s$^{-1}$ where multiple spectrograms are unavailable. S87
-says ``the mean sample velocity error''; Paper I quotes
-$\langle \sigma_v \rangle \approx 9$\,km\,s$^{-1}$. &
-\textbf{Liberty} (well grounded) \\
+1000 fields of 50--150 galaxies with magnitudes uniform on $[9,18]$, against
+S87's $10^6$ fields with $\log N(<m) = 0.6m + c_i$ (eq.~27) and her isolation
+criterion S1 (eq.~5). This is a genuine shortfall, but it is inert: the fit
+uses S87's published $P(B|C)$, not ours. Retained as a diagnostic only. \\
 \end{longtable}
+
+\subsection{Previously misclassified --- now known to be faithful}
+
+Four items appeared in an earlier version of this note as departures. Checking
+them against the paper shows they are S87's own prescriptions, and they are
+listed here so the record is not misleading.
+
+\begin{itemize}\itemsep3pt
+  \item \textbf{$\sigma_v = 9$\,km\,s$^{-1}$ fallback.} Prescribed by step 5;
+        Paper I gives $\langle\sigma_v\rangle \approx 9$\,km\,s$^{-1}$. The
+        real defect was applying it per pair (\S\ref{sec:corr}, item 3).
+  \item \textbf{Uniform galaxy positions} in the optical-pair simulation. S87
+        \S Vc(i): ``The coordinates of the galaxies were chosen from a uniform
+        distribution. Since clusters were avoided during the actual search,
+        this is a sufficiently good approximation.'' Our earlier claim that
+        this was a liberty forced by clustering was contradicted by the paper.
+  \item \textbf{Independent sampling of $r$ and orbital phase.} Steps M2, M3
+        and M5 draw $e$, mean anomaly, and $r$ independently, even though a
+        real orbit links them through $r = a(1-e\cos E)$. This is inherited,
+        not introduced --- but see \S\ref{sec:open}.
+  \item \textbf{Minimum-separation cut.} S87 bias B5 applies no correction for
+        pair overlap. The cut in our code
+        (\texttt{APPLY\_MIN\_SEP}) is a corrupted form of her isolation
+        criterion S1 (eq.~5), not a B5 cut. It is inert at these separations
+        and affects nothing.
+  \item \textbf{Kepler solver.} Not a departure at all; S87 M4 specifies only
+        that Kepler's equation be solved. Moved to \S\ref{sec:corr}.
+\end{itemize}
 
 \section{Reading the \texorpdfstring{$\chi^2$}{chi-squared}}
 \label{sec:chi2}
 
 The quantity reported is the \emph{minimum} of $\chi^2$ over the $y$ scan. A
-minimum is biased low and must not be compared against the degrees of freedom.
-A parametric bootstrap ($f_4/q_3$, 400 synthetic samples drawn from the model
-at its own best-fit $y$ and pushed through the identical scan) gives:
+minimum is biased low: one scans thousands of trial values and keeps the best,
+so even for a perfect model the smallest result sits well below the mean of the
+statistic. It must not be compared against the degrees of freedom.
 
-\begin{center}
-\begin{tabular}{lr}
-\toprule
-unminimised null, mean & 3.88 \quad ($\simeq \nu = 4$) \\
-minimised $\chi^2$, mean & 2.03 \\
-minimised $\chi^2$, median & 1.55 \\
-\textbf{implied ``perfect fit'' $\chi^2_\nu$} & \textbf{0.51 (mean), 0.39 (median)} \\
-\bottomrule
-\end{tabular}
-\end{center}
+Two Monte Carlo calibrations, both in
+\texttt{Binary\_87\_calibrate\_chi2.py}, make this quantitative. First, the
+\emph{unminimised} statistic behaves as expected: drawing $u_i$ uniform with the
+real $P(B|C)$ weights gives mean 3.897 and median 3.278, against the analytic
+$(\mathrm{nb}-1)\sum P_i^2/\sum P_i = 3.886$. The weighting is therefore not the
+problem, and $\nu = 5-1 = 4$ is appropriate (following S87, who charges no
+degree of freedom for $y$). Second, a parametric bootstrap at the fitted $y$
+gives, for $f_4/q_3$, a minimised $\chi^2$ of mean 1.881 and median 1.425 ---
+that is, a \emph{perfect} model here scores $\chi^2_\nu \approx 0.47$ (mean) or
+$0.36$ (median), not 1.
 
-S87's own Table~4 values run $0.53$--$1.02$, and she selects the model with the
-\emph{lowest} $\chi^2_\nu$ ($f_4$, at $0.53$), not the one nearest unity. Her
-remark that ``in $\chi^2$ tests with a good fit, $\chi^2_\nu$ should ideally be
-approximately equal to unity'' is the textbook ideal, not what the analysis
-achieves. Binning must not be tuned to reach it.
+S87's own Table~4 values run 0.53--1.02, and she selects the model with the
+\emph{lowest} $\chi^2_\nu$, not the one nearest unity. Her best model sits at
+0.53, essentially exactly the value our calibration says a perfect fit should
+produce. Her values were never anomalously low; unity was simply the wrong
+yardstick. Binning must not be tuned toward it.
 
-We follow S87 in taking $\nu = 5 - 1 = 4$ (five cells, one restriction, the
-number of pairs being fixed); she does not charge a degree of freedom for $y$.
+\paragraph{Closure test.} S87 \S VI(c) generated 10 synthetic samples of 43
+bound pairs on circular orbits with known \ML{} and recovered
+$(\ML)_{\rm out}/(\ML)_{\rm in} = 1.03 \pm 0.07$, whence her 22\% formal error.
+Repeating this with 300 samples per eccentricity model, drawn from the fitted
+conditional PDFs, gives ratios of 1.005, 1.018, 1.038, 1.065 and 1.057 for
+$f_1 \ldots f_5$ --- consistent with hers, and confirming the pipeline is
+unbiased. The implied per-sample relative error is $\approx$28\%, somewhat
+larger than her 22\%.
 
 \section{Results}
+\label{sec:results}
 
-Comparison against S87 Table~4, column $q_3$ (where $y$ is \ML{} directly),
-$H_0 = 50$:
+Best-fit $y$ is the raw $\arg\min$ of the scan. Bootstrap intervals are 16th to
+84th percentile.
 
 \begin{center}
-\begin{tabular}{lrrcr}
+\begin{tabular}{lrrcrr}
 \toprule
-Model & S87 & This work & $\Delta\chi^2 = 1$ range & S87 $\chi^2_\nu$ \\
+Model & $y$ & $\chi^2_\nu$ & 68\% interval & S87 $\mathcal{M}/L$ & ours \\
 \midrule
-$f_1$ (circular)    & 13 & 7.6  & 7.1--15.1  & 0.95 \\
-$f_2 = 2(1-e)$      & 15 & 13.0 & 8.1--19.6  & 0.85 \\
-$f_3 = 1$           & 21 & 20.6 & 12.6--20.6 & 0.84 \\
-$f_4 = 2e$          & 24 & 16.6 & 16.6--24.1 & 0.62 \\
-$f_5 = \delta(0.9)$ & 32 & 26.9 & 24.6--31.6 & 0.81 \\
+$f_1$ (circular)    & 11.85 & 0.62 & 9.1--14.9  & 13 & 11.9 \\
+$f_2 = 2(1-e)$      & 13.85 & 0.68 & 10.7--17.6 & 15 & 13.9 \\
+$f_3 = 1$           & 16.48 & 0.31 & 13.0--22.4 & 21 & 16.5 \\
+$f_4 = 2e$          & 21.10 & 0.37 & 16.7--29.2 & 24 & 21.1 \\
+$f_5 = \delta(0.9)$ & 28.35 & 0.37 & 22.2--39.3 & 32 & 28.4 \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-Her published result is $\ML_V = 21 \pm 5$ for Sc and $39 \pm 9$ for E, with
-$f_4(e) = 2e$ preferred. Her formal error is 22\% per solution, so the
-$f_4/q_3$ entry is $24 \pm 5$; most of the differences above are comparable to
-that. Note that \ML{} scales as $H_0$, so multiply by ${\sim}1.4$ to place
-these on an $H_0 = 70$ scale.
+\noindent
+(The last two columns are the $q_3$ model, for which $y$ \emph{is} \ML{}.)
+\textbf{Every one of S87's $q_3$ values falls inside our 68\% bootstrap
+interval.} Across all 30 entries of her Table~4 --- the three $q$ columns
+evaluated at her tabulated morphological types --- the median ratio of ours to
+hers is 0.989, the mean 1.004, and the scatter 8.9\%; all 30 lie within her
+22\% formal error. For her preferred model $f_4$ under $q_1$ at $t=+2.6$ we
+obtain 25.8 against her 25.
+
+Monotonicity in eccentricity (\S\ref{sec:method}) now holds in all three $q$
+columns: $q_1$ gives 2.73, 3.48, 4.23, 4.73, 6.73; $q_2$ gives 11.85, 13.85,
+16.48, 24.23, 30.85; $q_3$ as tabulated. Earlier runs violated it in two
+columns, which was proof the $\arg\min$ had not been located.
+
+Following S87 we take $f_4(e) = 2e$ as preferred, giving
+$\mathcal{M}/L_V \approx 21$ for an Sc galaxy and $\approx 40$ for an
+elliptical at $H_0 = 50$, in solar units. Since $M \propto H_0^{-1}$ and
+$L \propto H_0^{-2}$, $\ML \propto H_0$: multiply by ${\sim}1.4$ for
+$H_0 = 70$. We do \emph{not} claim to discriminate between eccentricity models:
+the observed $\chi^2_{\min}$ sits at the 48th to 78th percentile of its
+bootstrap null for every model, so $\chi^2$ separates none of them.
 
 \section{Open issues}
+\label{sec:open}
 
-\begin{enumerate}\itemsep3pt
+\begin{enumerate}\itemsep4pt
   \item \textbf{The $\chi^2(y)$ curve is jagged.} $\chi^2$ steps whenever a
-        $u_i$ crosses one of the five cell boundaries, producing many local
-        minima within $\Delta\chi^2 < 2$. The global $\arg\min$ is therefore
-        unstable, and S87's values fall on \emph{some} of our local minima but
-        not always the lowest. Percentile histogram ranges (98--99.9),
-        Savitzky--Golay smoothing of $\chi^2(y)$, and coarsening the $y$ grid
-        all failed to stabilise it. The principled fix is a statistic
+        $u_i$ crosses one of the five cell boundaries, giving many local minima
+        within $\Delta\chi^2 < 2$ and a disconnected sublevel set. Percentile
+        histogram ranges, Savitzky--Golay smoothing and coarser $y$ grids all
+        failed to stabilise it; a finer grid plus the corrected selection
+        machinery did, but fragility remains. The principled fix is a statistic
         continuous in $y$ --- Cram\'er--von Mises or Anderson--Darling on the
         $u_i$, or a direct likelihood
-        $\sum_i \log f(\Psi_i \,|\, r_{p,i}, y)$ --- which removes the
-        jaggedness at source and yields proper confidence intervals. That
-        would be a departure from S87 justified as an improvement, and is the
-        recommended next step.
-  \item \textbf{The closure test has not been run.} S87 \S VI(c) generates 10
-        synthetic samples of 43 bound pairs on circular orbits with known
-        \ML{} and recovers
-        $(\ML)_{\mathrm{out}}/(\ML)_{\mathrm{in}} = 1.03 \pm 0.07$, from which
-        her 22\% formal error follows. Repeating it here is the only clean way
-        to decide whether the residual Table~4 differences are bias or noise.
+        $\sum_i \log f(\Psi_{p,i} \,|\, r_{p,i}, y)$.
+  \item \textbf{Independent $(r, E)$ sampling is unquantified.} It is S87's own
+        prescription, but a real orbit links $r$ and phase, and conditioning on
+        an observed $r$ should skew the phase distribution toward apocentre.
+        Because the fit conditions on $r_p$, any resulting tilt does not average
+        out. The effect has been identified but not measured; it is the largest
+        unexamined physical assumption in the analysis.
+  \item \textbf{The deconvolved $f(r)$ is not smooth.} Local logarithmic slopes
+        computed from it are noisy at the 10\,000-bin resolution used, which
+        limits how far it can be interrogated and would need addressing before
+        quantifying issue 2.
+  \item \textbf{The observational reduction chain is unaudited.} Our inputs are
+        transcribed from S87 Table~1 rather than recomputed
+        (\S\ref{sec:repro}), so eqs.~(10)--(12), the apex correction and the
+        arcmin/arcsec handling do not enter our results and have not been
+        independently checked.
 \end{enumerate}
 
 \end{document}
