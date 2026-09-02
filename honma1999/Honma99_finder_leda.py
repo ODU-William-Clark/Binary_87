@@ -39,7 +39,7 @@ ISO = sys.argv[5] if len(sys.argv) > 5 else 'raw'         # 'raw' (1000 kpc, 600
 A_ISO = float(sys.argv[6]) if len(sys.argv) > 6 else 2.5
 B_ISO = 1.5
 H0, C_KMS = 50.0, 299792.458
-M_SUN_B = 5.44
+M_SUN_B = 5.48   # Honma states no value; 5.48 reproduces his R_p to 0.1% (5.44 in an earlier version)
 REQUIRE_ERRORS = True
 OUT = 'leda_pairs_epoch%d_%s_%s_comp%s_%s_a%.1f.csv' % (EPOCH, MAGCOL, FRAME, COMPMAG, ISO, A_ISO)
 
@@ -156,7 +156,7 @@ for i in range(N - 1):
     mu = 5 * np.log10(vbar / H0) + 25.0
     L10 = (10 ** (-0.4 * (p_m[i] - mu - M_SUN_B)) + 10 ** (-0.4 * (p_m[j] - mu - M_SUN_B))) / 1e10
     Lc = L10 ** (1 / 3.)
-    vp = np.abs(p_v[i] - p_v[j]) / (1 + vbar / C_KMS)
+    vp = np.abs(p_v[i] - p_v[j])            # no (1+z) factor: Honma works in km/s throughout
     V = vp / Lc
     ok = V <= 400.0
     j, fs, m_tot, vbar, L10, Lc, vp, V = (x[ok] for x in (j, fs, m_tot, vbar, L10, Lc, vp, V))
@@ -177,7 +177,7 @@ for i in range(N - 1):
         keep = (c_m <= mt + 2.0) & (c_pgc != p_pgc[i]) & (c_pgc != p_pgc[jj])
         th3 = ang(lc, bc, c_l[keep], c_b[keep])
         r3 = 2 * (vb / H0) * 1000 * np.tan(th3 / 2)
-        v3 = np.abs(c_v[keep] - vb) / (1 + vb / C_KMS)
+        v3 = np.abs(c_v[keep] - vb)
         if ISO == 'scaled':            # literal eqs. 5-6: thresholds scale with L10^(1/3)
             r3 = r3 / l10 ** (1 / 3.)
             v3 = v3 / l10 ** (1 / 3.)

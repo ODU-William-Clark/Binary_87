@@ -209,3 +209,41 @@ status differed. Two are photometric-source differences on the members
 HyperLEDA). One blocker (an SDSSJ object) did not exist in 1999. The
 reproducible core is therefore ~40-43 of 57; the rest is not recoverable
 from the paper plus present-day catalogues.
+
+## Revision after three independent audits (M/L method, selection, whole paper)
+
+Corrections adopted:
+- **Isolation units are OPEN, not settled.** "Keeps his 57" cannot
+  discriminate raw from L^(1/3)-scaled thresholds: all his pairs have
+  L10 >= 1.3, so scaled thresholds are uniformly stricter and any looser rule
+  scores higher. Non-monotone diagnostics split (scaled: 78 pairs, blind 43%,
+  38 group drops, 18/57; raw: 328, 23%, 171, 38/57; Sample II ratio his 1.91,
+  scaled 3.27, raw 1.56). His text ("the volume depends only on the total
+  luminosity of a pair") supports scaled. The finder runs both (ISO arg).
+- **Parent comparison made like-for-like**: 6,821 at B<=15.5 vs his 6,475
+  (the earlier 6,137 was members at 15.0).
+- **The "1999 catalogue depth" explanation for the extras is withdrawn**: 28%
+  of our own 1999-epoch members lie beyond 3653 km/s, and H99 states the
+  cause himself (bright pairs become scarce at large redshift -- a flux-limit
+  effect).
+- **Bound-truncated isotropic DF** adopted (scale-free rejection above
+  escape): isotropic results move 10-16% toward his and all nine published
+  values now sit inside the 2-D 68% intervals. The radial (beta=1) case is
+  added: 49.2 vs his 42 +34-7.
+- **His separation-dependence result (Fig. 7 / sec 4.1) is NOT reproduced**:
+  our inner bin (R_p<100) gives 24.9 vs his 36, with a rising trend where he
+  finds flat. Survives every variant; flagged as unresolved.
+- Expected-log likelihood justified by the circular-orbit case (convolved
+  form 12.0 vs his 28), not by median matching (which fails for circular).
+- Eq. 19's (2 pi sigma)^(-1/2) read as a typo: sqrt(sigma) weighting
+  overshoots (38.6, 46.8) with the bound DF.
+- Companion-magnitude system: btc is the only textually supported choice;
+  three of the five "irrecoverable" pairs are recoverable on raw bt, two are
+  violations under either system.
+- Fidelity nits: (1+z) factor removed (V_p validation now 1.001), M_B,sun =
+  5.48 in both scripts, e_v/e_bt member cut shown to be inert (his 7% cuts
+  are pair-level and unreproducible), "|b|" flagged as our reading of his
+  "b", the strict either/or reading of criteria 5-6 scored (0/57).
+- Cross-checks now used: 7 pairs above the (M/L)_p = 20 envelope (his ~7),
+  sample III mean raw separation 205.8 kpc (his ~206), spiral fraction 70.2%
+  (his 70%), subgroup counts 27/12/18 exact.

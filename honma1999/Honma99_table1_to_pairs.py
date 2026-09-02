@@ -61,7 +61,7 @@ for a, b in pairs:
 
     theta = ang_sep(a.GLON, a.GLAT, b.GLON, b.GLAT)
     rp_kpc = 2.0 * D_mpc * 1000.0 * np.tan(theta/2)
-    dv = abs(a.Vel - b.Vel) / (1 + vbar/C_KMS)
+    dv = abs(a.Vel - b.Vel)   # Honma applies no (1+z) factor; with it V_p validates at 0.993, without at 1.001
 
     Rp_check = rp_kpc / L10**(1/3.)
     Vp_check = dv / L10**(1/3.)
