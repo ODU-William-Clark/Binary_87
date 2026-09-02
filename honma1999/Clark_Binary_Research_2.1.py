@@ -31,6 +31,14 @@ import pandas as pd
 CONFIG = {
     "RC3_FWF_PATH": "RC3_data_7_5_1.txt",
     "NED_SHELL_CSV": "ned_shell_galaxies.csv",   # from ned_tap_fetch.py; optional
+    "PHOT_SUPP_CSV": "rc3_photometry_supplement.csv",  # HyperLEDA btc fill; optional
+    # Anachronism control: only use NED redshifts whose source bibcode year is
+    # <= this (None = use everything). NED's z_bibcode starts with the year, so
+    # setting 1999 approximates the catalogue Honma could have seen. It is a
+    # LOWER bound on his parent: NED may today prefer a post-1999 remeasurement
+    # for a galaxy that already had a redshift in 1999, and such galaxies are
+    # then wrongly dropped.
+    "Z_BIBCODE_MAX_YEAR": None,
     "OUTPUT_CSV": "binary_candidates_v2.1.csv",
     "H0": 50.0,
     "BAND": "B",
@@ -68,11 +76,30 @@ df["ID"] = np.arange(len(df))
 # --- (1) magnitude errors: default, not required ---------------------------
 df["B_T_0_err"] = df["B_T_0_err"].fillna(CONFIG["DEFAULT_MAG_ERR"])
 
+# --- photometry supplement (HyperLEDA btc for RC3 rows lacking B_T_0) -------
+if os.path.exists(CONFIG["PHOT_SUPP_CSV"]):
+    supp = pd.read_csv(CONFIG["PHOT_SUPP_CSV"]).dropna(subset=["B_supp"])
+    n_phot = 0
+    for _, srow in supp.iterrows():
+        dl = (df.l - srow.l + 180) % 360 - 180
+        d = np.hypot(dl * np.cos(np.radians(srow.b)), df.b - srow.b)
+        i = d.idxmin()
+        if d[i] < 0.03 and pd.isna(df.at[i, MAG]):
+            df.at[i, MAG] = srow.B_supp
+            n_phot += 1
+    print("photometry supplement: filled %d B_T_0 values" % n_phot)
+
 # --- (2) fill missing velocities from the NED shell ------------------------
 n_filled = 0
 if os.path.exists(CONFIG["NED_SHELL_CSV"]):
     ned = pd.read_csv(CONFIG["NED_SHELL_CSV"])
     ned = ned.dropna(subset=["z", "gallon", "gallat"])
+    if CONFIG["Z_BIBCODE_MAX_YEAR"] is not None and "z_bibcode" in ned.columns:
+        yr = pd.to_numeric(ned.z_bibcode.astype(str).str[:4], errors="coerce")
+        before = len(ned)
+        ned = ned[yr <= CONFIG["Z_BIBCODE_MAX_YEAR"]]
+        print("epoch filter <=%d: NED shell %d -> %d galaxies"
+              % (CONFIG["Z_BIBCODE_MAX_YEAR"], before, len(ned)))
     ned_v = ned.z.values * 299792.458
     ned_l = ned.gallon.values
     ned_b = ned.gallat.values

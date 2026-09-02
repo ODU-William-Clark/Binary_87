@@ -54,3 +54,37 @@ distribution-function detail (we draw V_los Gaussian at the Jeans dispersion;
 he does not state his sampling), still within his quoted errors.
 
 All at H0 = 50 as in the paper; M/L scales as H0.
+
+## Sample selection: data access and the catalogue-epoch problem
+
+- **NED bulk access**: `ned_tap_fetch.py` queries NED's TAP service
+  (`ned.ipac.caltech.edu/tap`, table `NEDTAP.objdir`) with asynchronous ADQL
+  jobs. NED aborts any job at ~60 s, so large selections are chunked into thin
+  redshift slices. The full cz = 840-4676 km/s shell is 43,572 galaxies in 8
+  slices (~9 requests). TAP carries NO photometry, and NED's legacy per-object
+  CGI currently fails ("EGRET error"), so magnitudes come from **HyperLEDA**
+  (`leda_photometry_fill.py`; `btc` is corrected total B on the RC3 B_T^0
+  system). `rc3_photometry_supplement.csv` holds the 13 Honma-pair members
+  RC3 lacks photometry for (NGC 2979 has no B in HyperLEDA either and uses
+  Honma's tabulated value).
+
+- **Catalogue drift since 1999 is large, not cosmetic.** Of the 43,572
+  current NED redshifts in the shell, only 4,426 (10%) cite a source published
+  by 1999; 90% of preferred redshifts postdate the paper. The finder has a
+  `Z_BIBCODE_MAX_YEAR` switch to restrict to <=1999 sources, but this is a
+  LOWER bound on the 1999 catalogue: NED replaces its preferred redshift when
+  a better measurement appears, so galaxies Honma demonstrably used (NGC 5899/
+  5900, IC 4888/4889, NGC 1134/IC 267 are in his Table 1) now carry post-1999
+  bibcodes and are wrongly dropped in 1999 mode. The two modes therefore
+  BRACKET his selection epoch:
+
+  | mode | parent | pairs | of Honma's 57 | extras |
+  |---|---|---|---|---|
+  | 2026 (all z) | 4,127 | 56 | 15 | 41 |
+  | 1999 (bibcode <= 1999) | 3,336 | 41 | 11 | 30 |
+
+  Of the 56 pairs in 2026 mode, 18 depend on at least one post-1999 preferred
+  redshift; 15 of those are extras -- pairs that could not have been selected
+  in 1999. Catalogue growth therefore accounts for roughly a third of the
+  extras; the remainder trace to the isolation-criterion reading (still open)
+  and companion-pool depth.
