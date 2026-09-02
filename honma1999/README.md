@@ -124,3 +124,45 @@ catalogue-epoch caveat in the section above. Making this faithful needs
 magnitudes for the blocker pool (the threshold is m3 <= m_pair + 2): the next
 step is a bulk HyperLEDA pull (v in shell + bt) to build a complete companion
 catalogue with photometry in one query.
+
+## 1999 sample reconstruction on HyperLEDA (v2.2): status
+
+`Honma99_finder_leda.py` rebuilds the selection on a complete
+magnitude-bearing catalogue: every HyperLEDA galaxy with btc <= 15.8
+(102,800; `btc` is the RC3 B_T^0 system Honma used), pulled in 12 longitude
+slices through HyperLEDA's fG.cgi interface. The 1999 epoch is defined by
+which galaxies had a redshift by then: RC3 native velocities, the CfA ZCAT
+June 1995 (VII/193, `zcat95_parse.py`), and NED <=1999 bibcodes. Galaxies not
+in that set become redshift-unknown: not eligible as members, blocking only
+by projection. Parent: **5,918 members vs his 6,475** -- the closest match
+yet.
+
+| mode | parent | pairs | of his 57 | extras |
+|---|---|---|---|---|
+| 2026 (HyperLEDA velocities) | 7,480 | 481 | 40 | 441 |
+| 1999 (RC3 + ZCAT95 + NED<=99) | 5,918 | 294 | 37 | 257 |
+
+**What matches his paper.** The blind (redshift-unknown) rejection step
+removes 27% of the candidates that reach it; he reports ~30%. The pair cuts
+are confirmed L-corrected (13 of his pairs exceed 400 kpc raw). The raw
+isolation reading keeps 43-45/57 of his pairs; a = 1.5 keeps 52.
+
+**What does not, and was tested.** After known-z isolation we hold 615
+candidates where his numbers imply ~95. Ruled out: out-of-shell galaxies as
+blockers (keeps 38/57, worse); velocity-blind blocking (36/57); raw vs
+corrected magnitudes (242 vs 294 pairs, same recovery). Partial
+discriminators: his pairs are mutual nearest neighbours 89% of the time vs
+54% of our extras; and his sample spans v_bar = 1513-3653 km/s only, with
+zero pairs beyond 3653 although his stated cut is 4500 and volume alone would
+put ~half the sample there -- a 1999 redshift-completeness signature that
+no current catalogue reproduces. Our extras are systematically wider and
+faster (median R_p 172 vs 94 kpc; V_p 47 vs 26 km/s). Applying both empirical
+filters (his velocity range + mutual nearest neighbour) gives 148 pairs with
+31 of his -- still ~2.5x his count.
+
+**Conclusion.** The documented procedure reproduces a core of ~37-40 of his
+57 pairs and his parent size, but his final selectivity is not derivable
+from the paper; the undocumented remainder is most plausibly the NED-1999
+redshift catalogue's depth profile, which no present-day source preserves.
+The modern-data study should therefore be framed as a NEW selection on a
+version-stamped catalogue rather than as an extension of his sample.

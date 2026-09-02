@@ -7,3 +7,7 @@ best_fit_y_results.csv
 Binary_gal_97_with_probabilities.txt
 honma1999/ned_shell_galaxies.csv
 honma1999/ned_slice_*.csv
+honma1999/leda_*.csv
+honma1999/leda_slice_*.txt
+honma1999/zcat.dat
+honma1999/zcat95_galactic.csv

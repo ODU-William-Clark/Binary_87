@@ -123,6 +123,15 @@ def survives(h, pool, variant):
     elif variant == 'rawrv':
         Rbad = r3 < A_ISO * 400
         Vbad = v3 < B_ISO * 400
+    elif variant == 'rawrv_oos':  # out-of-shell known-z treated as blind (R-only)
+        Rbad = r3 < A_ISO * 400
+        Vbad = np.where(inshell, v3 < B_ISO * 400, True)
+    elif variant == 'rawR':      # projection alone, velocity ignored
+        Rbad = r3 < A_ISO * 400
+        Vbad = np.ones_like(r3, bool)
+    elif variant == 'rawrv1.5':  # a = 1.5 (his sample II volume)
+        Rbad = r3 < 1.5 * 400
+        Vbad = v3 < B_ISO * 400
     elif variant == 'comb':
         f3 = 10**(-.4 * pm[keep])
         fs = fA + fB
@@ -136,7 +145,10 @@ def survives(h, pool, variant):
         Rbad = np.where(hasv, r3c / Lc3 < A_ISO * 400, r3 / Lc < A_ISO * 400)
         Vbad = v3c / Lc3 < B_ISO * 400
 
-    harmful = np.where(hasv, inshell & Rbad & Vbad, Rbad)
+    if variant == 'rawrv_oos':
+        harmful = np.where(hasv, Rbad & Vbad, Rbad)   # out-of-shell: Vbad forced True
+    else:
+        harmful = np.where(hasv, inshell & Rbad & Vbad, Rbad)
     if not harmful.any():
         return True, None
     idx = np.flatnonzero(harmful)[0]
@@ -147,7 +159,7 @@ for epoch, label in [(1999, 'companion pool: NED z <= 1999'),
     pool, nf = make_pool(epoch)
     print('=== %s  (NED velocity fills into pool: %d) ===' % (label, nf))
     print('%-8s %10s' % ('variant', 'kept of 57'))
-    for variant in ['lit', 'rawv', 'rawrv', 'comb']:
+    for variant in ['rawrv', 'rawrv_oos', 'rawrv1.5']:
         kills = []
         for _, h in his.iterrows():
             ok, killer = survives(h, pool, variant)
