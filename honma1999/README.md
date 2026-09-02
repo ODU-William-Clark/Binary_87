@@ -166,3 +166,46 @@ from the paper; the undocumented remainder is most plausibly the NED-1999
 redshift catalogue's depth profile, which no present-day source preserves.
 The modern-data study should therefore be framed as a NEW selection on a
 version-stamped catalogue rather than as an extension of his sample.
+
+## Re-read of the paper: two misreadings found and fixed
+
+A line-by-line re-read against the 19-20 missed pairs (`Honma99_miss_audit.py`
+traces each one through the pipeline) found two things we had wrong:
+
+1. **Velocity frame.** Honma says "heliocentric velocities" and never applies
+   a Local Group correction. His Table 1 velocities match RC3 heliocentric
+   values to MAD 13 km/s (vs 133 km/s for LG-corrected). We had been applying
+   the Yahil et al. correction (up to +/-308 km/s) to the 1000-4500 window,
+   distances and companion velocities. Fixed (`FRAME='helio'` default).
+2. **Epoch-match tolerance.** ZCAT-95 positions are coarse B1950 values;
+   NGC 1266 sits 0.036 deg from its ZCAT entry and was being counted as
+   redshift-unknown. Tolerance raised to 0.05 deg. Parent is now **6,137
+   members vs his 6,475**.
+
+And one thing we can bracket but not settle -- **the magnitude system of the
+companion pool**. The isolation killers of his pairs cluster suspiciously
+close to the m_pair+2 threshold (0.01, 0.02, 0.03, 0.06, 0.08, 0.09 mag
+above it), which says his companion magnitudes ran fainter than HyperLEDA's
+corrected btc, i.e. a 1999 blind NED search returned raw magnitudes. But
+using raw bt for all companions collapses the blind-rejection rate to 7%
+against his ~30% and inflates extras; a hybrid (btc for RC3 galaxies, raw
+otherwise -- his "NED, supplied with RC3") gives 9%. His companion photometry
+was evidently heterogeneous in a way no single rule reproduces:
+
+| companions | blind-step rejection (his ~30%) | of his 57 | pairs |
+|---|---|---|---|
+| btc (corrected) | 23% | 38 | 328 |
+| hybrid | 9% | 43 | 447 |
+| raw bt | 7% | 40 | 465 |
+
+**Ceiling on recovery.** Of the remaining misses, five are pairs with a
+genuine bright in-shell companion inside 1000 kpc and 600 km/s that he kept
+anyway (NGC 7185/7188 with NGC 7180 at 170 kpc; NGC 5198/5173 with NGC 5169;
+NGC 7444/7443 with NGC 7450; NGC 5916/5915 with NGC 5916A at 67 kpc, dv 8;
+NGC 6484/UGC 11029 with UGC 11027) -- violations of his own stated criterion
+under any reading, presumably companions whose 1999 magnitude or redshift
+status differed. Two are photometric-source differences on the members
+(ESO 122-IG002 btc 15.10 vs his 14.5; NGC 2979 has no magnitude in
+HyperLEDA). One blocker (an SDSSJ object) did not exist in 1999. The
+reproducible core is therefore ~40-43 of 57; the rest is not recoverable
+from the paper plus present-day catalogues.

@@ -32,12 +32,14 @@ import numpy as np
 import pandas as pd
 
 EPOCH = int(sys.argv[1]) if len(sys.argv) > 1 else 2026
-MAGCOL = sys.argv[2] if len(sys.argv) > 2 else 'btc'   # 'btc' (corrected) or 'bt' (raw)
+MAGCOL = sys.argv[2] if len(sys.argv) > 2 else 'btc'   # member magnitudes: 'btc' (corrected) or 'bt' (raw)
+FRAME = sys.argv[3] if len(sys.argv) > 3 else 'helio'    # 'helio' (Honma: heliocentric, no LG correction) or 'lg'
+COMPMAG = sys.argv[4] if len(sys.argv) > 4 else 'bt'    # companion-pool magnitudes for the m_pair+2 threshold
 A_ISO, B_ISO = 2.5, 1.5
 H0, C_KMS = 50.0, 299792.458
 M_SUN_B = 5.44
 REQUIRE_ERRORS = True
-OUT = 'leda_pairs_epoch%d_%s.csv' % (EPOCH, MAGCOL) if MAGCOL != 'btc' else 'leda_pairs_epoch%d.csv' % EPOCH
+OUT = 'leda_pairs_epoch%d_%s_%s_comp%s.csv' % (EPOCH, MAGCOL, FRAME, COMPMAG)
 
 cat = pd.read_csv('leda_btc15.8_allsky.csv')
 cat = cat.dropna(subset=['l2', 'b2', 'btc']).reset_index(drop=True)
@@ -45,7 +47,7 @@ if MAGCOL == 'bt':
     cat['btc'] = cat['bt']   # use raw total B everywhere (sensitivity test)
 
 # ---------------------------------------------------------------- epoch ----
-def positional_flag(src_l, src_b, tol=0.02):
+def positional_flag(src_l, src_b, tol=0.05):   # 0.05: ZCAT's B1950 positions are coarse (NGC 1266 sits 0.036 deg off)
     """Boolean per catalogue row: has a counterpart within tol deg in (src_l, src_b)."""
     order = np.argsort(src_b); sb = src_b[order]
     flag = np.zeros(len(cat), bool)
@@ -85,7 +87,10 @@ else:
     print('epoch 2026: %d of %d catalogue galaxies have a velocity'
           % (np.isfinite(vel).sum(), len(cat)))
 
-V_SUN, L_A, B_A = 308.0, np.radians(105.0), np.radians(-7.0)
+# Honma's Table 1 velocities match RC3 HELIOCENTRIC values to MAD 13 km/s
+# (vs 133 km/s for LG-corrected): he applied no Local Group correction.
+V_SUN = 0.0 if FRAME == 'helio' else 308.0
+L_A, B_A = np.radians(105.0), np.radians(-7.0)
 lr, br = np.radians(cat.l2.values), np.radians(cat.b2.values)
 vlg = vel + V_SUN * (np.sin(br) * np.sin(B_A) + np.cos(br) * np.cos(B_A) * np.cos(lr - L_A))
 cat['V_lg'] = vlg
@@ -100,7 +105,28 @@ P.to_csv('leda_parent_epoch%d.csv' % EPOCH, index=False)
 print('parent (members): %d   (Honma: 6475 at m<=15.5 incl. non-members)' % len(P))
 
 # companion pool: whole catalogue (btc <= 15.8 covers every m_pair+2 <= 15.5)
-c_l, c_b, c_m = cat.l2.values, cat.b2.values, cat.btc.values
+# Companion magnitudes: a 1999 redshift-blind NED search returned raw
+# (uncorrected) magnitudes, and the isolation killers of his own pairs sit
+# 0.01-0.2 mag above the btc threshold -- so raw bt is the faithful choice.
+c_l, c_b = cat.l2.values, cat.b2.values
+if COMPMAG == 'bt':
+    c_m = np.where(np.isfinite(cat.bt.values), cat.bt.values, cat.btc.values)
+elif COMPMAG == 'hybrid':
+    # "NED, supplied with RC3": RC3 galaxies carried corrected B_T^0 in NED,
+    # everything else a raw magnitude. Use btc where the galaxy is an RC3
+    # object with B_T_0, raw bt otherwise.
+    _rc3 = pd.read_fwf('RC3_data_7_5_1.txt', colspecs=[(123, 130), (131, 138), (394, 400)],
+                       names=['l', 'b', 'B'])
+    for _c in _rc3.columns:
+        _rc3[_c] = pd.to_numeric(_rc3[_c], errors='coerce')
+    _rc3 = _rc3.dropna()
+    _is_rc3 = positional_flag(_rc3.l.values, _rc3.b.values, tol=0.03)
+    c_m = np.where(_is_rc3, cat.btc.values,
+                   np.where(np.isfinite(cat.bt.values), cat.bt.values, cat.btc.values))
+    print('hybrid companion magnitudes: %d RC3 galaxies use btc, %d others use raw bt'
+          % (_is_rc3.sum(), (~_is_rc3).sum()))
+else:
+    c_m = cat.btc.values
 c_v = cat.V_lg.values
 c_has = np.isfinite(c_v)
 c_in = c_has & (c_v >= 1000.0) & (c_v <= 4500.0)
@@ -179,4 +205,4 @@ if len(pairs):
     print('group rejection: %d pairs dropped (%d galaxies in >=2 pairs)' % (ing.sum(), len(grouped)))
     pairs = pairs[~ing].reset_index(drop=True)
 pairs.to_csv(OUT, index=False)
-print('FINAL: %d pairs -> %s   (Honma sample I: 57)' % (len(pairs), OUT))
+print('FINAL: %d pairs -> %s   (Honma sample I: 57)   [epoch %d, members %s, frame %s, companions %s]' % (len(pairs), OUT, EPOCH, MAGCOL, FRAME, COMPMAG))
