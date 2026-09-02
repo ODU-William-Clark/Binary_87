@@ -37,11 +37,18 @@ FRAME = sys.argv[3] if len(sys.argv) > 3 else 'helio'    # 'helio' (Honma: helio
 COMPMAG = sys.argv[4] if len(sys.argv) > 4 else 'btc'   # companion-pool magnitudes for the m_pair+2 threshold
 ISO = sys.argv[5] if len(sys.argv) > 5 else 'raw'         # 'raw' (1000 kpc, 600 km/s) or 'scaled' (literal eqs. 5-6, / L10^(1/3))
 A_ISO = float(sys.argv[6]) if len(sys.argv) > 6 else 2.5
+# Blind (redshift-unknown) blocker pool. Honma's blind search could only see
+# galaxies that were IN the 1998 NED catalogue. Our HyperLEDA pool contains
+# many objects catalogued later, which block anachronistically (e.g. an SDSS
+# object 140 kpc from NGC 5798/5789). 'pre1999' keeps only classical
+# designations (NGC/IC/UGC/ESO/MCG/CGCG/...) and PGC numbers within the 1989
+# PGC (<= 73197); 'all' keeps everything.
+BLINDPOOL = sys.argv[7] if len(sys.argv) > 7 else 'pre1999'
 B_ISO = 1.5
 H0, C_KMS = 50.0, 299792.458
 M_SUN_B = 5.48   # Honma states no value; 5.48 reproduces his R_p to 0.1% (5.44 in an earlier version)
 REQUIRE_ERRORS = True
-OUT = 'leda_pairs_epoch%d_%s_%s_comp%s_%s_a%.1f.csv' % (EPOCH, MAGCOL, FRAME, COMPMAG, ISO, A_ISO)
+OUT = 'leda_pairs_epoch%d_%s_%s_comp%s_%s_a%.1f_%s.csv' % (EPOCH, MAGCOL, FRAME, COMPMAG, ISO, A_ISO, BLINDPOOL)
 
 cat = pd.read_csv('leda_btc15.8_allsky.csv')
 cat = cat.dropna(subset=['l2', 'b2', 'btc']).reset_index(drop=True)
@@ -131,6 +138,21 @@ else:
     c_m = cat.btc.values
 c_v = cat.V_lg.values
 c_has = np.isfinite(c_v)
+if BLINDPOOL == 'pre1999' and EPOCH <= 1999:
+    import re
+    CLASSICAL = re.compile(r'^(NGC|IC|UGC|UGCA|ESO|MCG|CGCG|DDO|Mrk|MRK|ARP|VV|Zw|ZW|Tol|AM|KUG|IRAS|FGC|A[0-9])')
+    def _in_1999_catalogue(n):
+        n = str(n).strip()
+        if CLASSICAL.match(n):
+            return True
+        m = re.match(r'^PGC0*([0-9]+)$', n)
+        return bool(m) and int(m.group(1)) <= 73197      # the 1989 PGC
+    _old = np.array([_in_1999_catalogue(n) for n in cat.objname.values])
+    # a galaxy absent from 1999 catalogues can neither be a member nor block
+    n_drop = int((~_old & ~c_has).sum())
+    c_has = c_has | ~_old        # mark them "known" so the blind test skips them
+    c_v = np.where(_old, c_v, np.nan)
+    print('blind pool restricted to 1999-era catalogues: %d modern objects removed as blockers' % n_drop)
 c_in = c_has & (c_v >= 1000.0) & (c_v <= 4500.0)
 c_pgc = cat.pgc.values
 
