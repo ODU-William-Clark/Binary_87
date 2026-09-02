@@ -23,7 +23,7 @@ yr=pd.to_numeric(ned.z_bibcode.astype(str).str[:4],errors='coerce'); ned=ned[yr<
 zc=pd.read_csv('zcat95_galactic.csv').dropna(subset=['l','b','Vh'])
 known = flag(rc3.l.values,rc3.b.values)|flag(ned.gallon.values,ned.gallat.values)|flag(zc.l.values,zc.b.values)
 vel = cat.v.values.copy(); vel[~known]=np.nan
-V_SUN,L_A,B_A=308.,np.radians(105.),np.radians(-7.)
+V_SUN,L_A,B_A=0.,np.radians(105.),np.radians(-7.)   # heliocentric, as in the finder
 lr,br=np.radians(cat.l2.values),np.radians(cat.b2.values)
 vlg = vel+V_SUN*(np.sin(br)*np.sin(B_A)+np.cos(br)*np.cos(B_A)*np.cos(lr-L_A))
 cat['V_lg']=vlg; cat['known']=known
@@ -31,7 +31,10 @@ cat['V_lg']=vlg; cat['known']=known
 his=pd.read_csv('honma99_pairs.csv')
 raw=pd.read_fwf('honma_table1_full.dat',colspecs=[(0,16),(36,45),(46,55)],names=['Name','GLON','GLAT'])
 raw['Name']=raw.Name.str.strip(); coord={r.Name:(r.GLON,r.GLAT) for r in raw.itertuples()}
-found=pd.read_csv('leda_pairs_epoch1999.csv'); pre=pd.read_csv('leda_pairs_epoch1999_pregroup.csv')
+import sys
+BASE = sys.argv[1] if len(sys.argv) > 1 else 'leda_pairs_epoch1999_btc_helio_compbtc_raw_a2.5.csv'
+found=pd.read_csv(BASE); pre=pd.read_csv(BASE.replace('.csv','_pregroup.csv'))
+print('final pairs file: %s  (%d pairs, %d pre-group)' % (BASE, len(found), len(pre)))
 def inset(df,l1,b1,l2,b2):
     for r in df.itertuples():
         a=np.hypot(((r.l1-l1)+180)%360-180,r.b1-b1)<0.03 and np.hypot(((r.l2-l2)+180)%360-180,r.b2-b2)<0.03
@@ -64,8 +67,10 @@ for _,h in his.iterrows():
     # pair cuts with our values
     fA,fB=10**(-.4*gA.btc),10**(-.4*gB.btc); mt=-2.5*np.log10(fA+fB)
     vb=(gA.V_lg*fA+gB.V_lg*fB)/(fA+fB); mu=5*np.log10(vb/H0)+25
-    L10=(10**(-.4*(gA.btc-mu-5.44))+10**(-.4*(gB.btc-mu-5.44)))/1e10; Lc=L10**(1/3.)
-    V=abs(gA.V_lg-gB.V_lg)/(1+vb/C)/Lc; R=2*(vb/H0)*1000*np.tan(ang(lA,bA,lB,bB)/2)/Lc
+    L10=(10**(-.4*(gA.btc-mu-5.48))+10**(-.4*(gB.btc-mu-5.48)))/1e10; Lc=L10**(1/3.)
+    # no (1+z) factor, as in the finder
+    V=abs(gA.V_lg-gB.V_lg)/Lc
+    R=2*(vb/H0)*1000*np.tan(ang(lA,bA,lB,bB)/2)/Lc
     if mt>13.5 or V>400 or R>400:
         print('%-30s PAIR CUT: m1+2=%.2f V=%.0f R=%.0f  (his Rp=%.0f Vp=%.0f)'%(h.name1+'+'+h.name2,mt,V,R,h.Rp,h.Vp)); continue
     if inset(pre,lA,bA,lB,bB):
