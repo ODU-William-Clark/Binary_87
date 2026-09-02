@@ -34,12 +34,14 @@ import pandas as pd
 EPOCH = int(sys.argv[1]) if len(sys.argv) > 1 else 2026
 MAGCOL = sys.argv[2] if len(sys.argv) > 2 else 'btc'   # member magnitudes: 'btc' (corrected) or 'bt' (raw)
 FRAME = sys.argv[3] if len(sys.argv) > 3 else 'helio'    # 'helio' (Honma: heliocentric, no LG correction) or 'lg'
-COMPMAG = sys.argv[4] if len(sys.argv) > 4 else 'bt'    # companion-pool magnitudes for the m_pair+2 threshold
-A_ISO, B_ISO = 2.5, 1.5
+COMPMAG = sys.argv[4] if len(sys.argv) > 4 else 'btc'   # companion-pool magnitudes for the m_pair+2 threshold
+ISO = sys.argv[5] if len(sys.argv) > 5 else 'raw'         # 'raw' (1000 kpc, 600 km/s) or 'scaled' (literal eqs. 5-6, / L10^(1/3))
+A_ISO = float(sys.argv[6]) if len(sys.argv) > 6 else 2.5
+B_ISO = 1.5
 H0, C_KMS = 50.0, 299792.458
 M_SUN_B = 5.44
 REQUIRE_ERRORS = True
-OUT = 'leda_pairs_epoch%d_%s_%s_comp%s.csv' % (EPOCH, MAGCOL, FRAME, COMPMAG)
+OUT = 'leda_pairs_epoch%d_%s_%s_comp%s_%s_a%.1f.csv' % (EPOCH, MAGCOL, FRAME, COMPMAG, ISO, A_ISO)
 
 cat = pd.read_csv('leda_btc15.8_allsky.csv')
 cat = cat.dropna(subset=['l2', 'b2', 'btc']).reset_index(drop=True)
@@ -176,6 +178,9 @@ for i in range(N - 1):
         th3 = ang(lc, bc, c_l[keep], c_b[keep])
         r3 = 2 * (vb / H0) * 1000 * np.tan(th3 / 2)
         v3 = np.abs(c_v[keep] - vb) / (1 + vb / C_KMS)
+        if ISO == 'scaled':            # literal eqs. 5-6: thresholds scale with L10^(1/3)
+            r3 = r3 / l10 ** (1 / 3.)
+            v3 = v3 / l10 ** (1 / 3.)
         bad_known = c_in[keep] & (r3 <= A_ISO * 400) & (v3 <= B_ISO * 400)
         bad_blind = (~c_has[keep]) & (r3 <= A_ISO * 400)
         if bad_known.any():

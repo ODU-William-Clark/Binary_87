@@ -69,7 +69,9 @@ def make_pool(max_year):
         if d[k] < .02:
             vv[i] = nv[c[k]]; filled += 1
     p['V_use'] = vv
-    V_SUN, L_A, B_A = 308.0, np.radians(105.), np.radians(-7.)
+    # Honma's velocities are heliocentric; the pair velocities scored here come
+    # from his Table 1, so the companion pool must NOT be LG-corrected either.
+    V_SUN, L_A, B_A = 0.0, np.radians(105.), np.radians(-7.)
     br, lr = np.radians(p.b), np.radians(p.l)
     p['V_lg'] = p.V_use + V_SUN * (np.sin(br) * np.sin(B_A)
                                    + np.cos(br) * np.cos(B_A) * np.cos(lr - L_A))
@@ -159,7 +161,7 @@ for epoch, label in [(1999, 'companion pool: NED z <= 1999'),
     pool, nf = make_pool(epoch)
     print('=== %s  (NED velocity fills into pool: %d) ===' % (label, nf))
     print('%-8s %10s' % ('variant', 'kept of 57'))
-    for variant in ['rawrv', 'rawrv_oos', 'rawrv1.5']:
+    for variant in ['lit', 'rawv', 'rawrv', 'rawR', 'rawrv1.5', 'comb']:
         kills = []
         for _, h in his.iterrows():
             ok, killer = survives(h, pool, variant)
