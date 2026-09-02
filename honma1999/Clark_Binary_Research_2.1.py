@@ -39,6 +39,13 @@ CONFIG = {
     # for a galaxy that already had a redshift in 1999, and such galaxies are
     # then wrongly dropped.
     "Z_BIBCODE_MAX_YEAR": None,
+    # Isolation reading. 'rawrv' (default): companion harmful iff BOTH
+    # r3 < a*400 kpc AND |dv| < b*400 km/s in RAW physical units -- the reading
+    # that keeps 43-45 of Honma's own 57 pairs, against 23-26 for the literal
+    # L^{1/3}-scaled criteria 5-6 as typeset and 15-17 for the 2.0 finder's
+    # combined-luminosity version ('comb', kept for comparison). All of his
+    # worked examples set L10 = 1, where raw and scaled coincide.
+    "ISOLATION_VARIANT": "rawrv",
     "OUTPUT_CSV": "binary_candidates_v2.1.csv",
     "H0": 50.0,
     "BAND": "B",
@@ -209,22 +216,31 @@ for i in range(N - 1):
         th3 = ang_sep(lc, bc, c_l[keep], c_b[keep])
         m3 = c_m[keep]; vlg3 = c_vlg[keep]; hasv3 = c_has_v[keep]
 
-        # redshift-unknown companions: reject on projected distance alone
-        r3u = 2 * (vb / H0) * 1000 * np.tan(th3 / 2) / ln ** (1 / 3)
-        bad_u = (~hasv3) & (r3u <= a_iso * 400.0)
-
-        # known-z companions (2.0 semantics: combined-luminosity norm)
-        kz = hasv3 & (vlg3 >= CONFIG["V_LG_MIN"])
-        f3 = 10 ** (-0.4 * m3)
-        vbar3 = (vb * fs + vlg3 * f3) / (fs + f3)
-        mu3 = 5 * np.log10(np.clip(vbar3 / H0, 1e-6, None)) + 25.0
-        Lp3 = (10 ** (-0.4 * (p_m[i] - mu3 - M_SUN))
-               + 10 ** (-0.4 * (p_m[jj] - mu3 - M_SUN))
-               + 10 ** (-0.4 * (m3 - mu3 - M_SUN))) / 1e10
-        vp3 = np.abs(vbar3 - vlg3) / (1 + vbar3 / C_KMS)
-        rp3 = 2 * (vbar3 / H0) * 1000 * np.tan(th3 / 2)
-        bad_k = kz & (rp3 / Lp3 ** (1 / 3) <= a_iso * 400.0) \
-                   & (vp3 / Lp3 ** (1 / 3) <= b_iso * 400.0)
+        if CONFIG["ISOLATION_VARIANT"] == "rawrv":
+            # raw physical thresholds (the reading that best recovers Honma's
+            # own sample); known-z companions outside the survey shell are not
+            # sample members and cannot harm
+            r3 = 2 * (vb / H0) * 1000 * np.tan(th3 / 2)
+            v3 = np.abs(vlg3 - vb) / (1 + vb / C_KMS)
+            inshell = (hasv3 & (vlg3 >= CONFIG["V_LG_MIN"])
+                       & (vlg3 <= CONFIG["V_LG_MAX"]))
+            bad_u = (~hasv3) & (r3 <= a_iso * 400.0)
+            bad_k = inshell & (r3 <= a_iso * 400.0) & (v3 <= b_iso * 400.0)
+        else:  # 'comb': the 2.0 finder's combined-luminosity semantics
+            # redshift-unknown companions: reject on projected distance alone
+            r3u = 2 * (vb / H0) * 1000 * np.tan(th3 / 2) / ln ** (1 / 3)
+            bad_u = (~hasv3) & (r3u <= a_iso * 400.0)
+            kz = hasv3 & (vlg3 >= CONFIG["V_LG_MIN"])
+            f3 = 10 ** (-0.4 * m3)
+            vbar3 = (vb * fs + vlg3 * f3) / (fs + f3)
+            mu3 = 5 * np.log10(np.clip(vbar3 / H0, 1e-6, None)) + 25.0
+            Lp3 = (10 ** (-0.4 * (p_m[i] - mu3 - M_SUN))
+                   + 10 ** (-0.4 * (p_m[jj] - mu3 - M_SUN))
+                   + 10 ** (-0.4 * (m3 - mu3 - M_SUN))) / 1e10
+            vp3 = np.abs(vbar3 - vlg3) / (1 + vbar3 / C_KMS)
+            rp3 = 2 * (vbar3 / H0) * 1000 * np.tan(th3 / 2)
+            bad_k = kz & (rp3 / Lp3 ** (1 / 3) <= a_iso * 400.0) \
+                       & (vp3 / Lp3 ** (1 / 3) <= b_iso * 400.0)
 
         if np.any(bad_u | bad_k):
             stats["iso"] += 1

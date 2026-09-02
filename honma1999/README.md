@@ -88,3 +88,39 @@ All at H0 = 50 as in the paper; M/L scales as H0.
   in 1999. Catalogue growth therefore accounts for roughly a third of the
   extras; the remainder trace to the isolation-criterion reading (still open)
   and companion-pool depth.
+
+## Isolation criteria 5-6: the reading is RAW physical units
+
+All 57 of Honma's pairs survived his own isolation cut, so the correct reading
+must keep them. Scoring four candidate readings against his sample
+(`Honma99_isolation_test.py`; companion pool = RC3 magnitudes + epoch-limited
+NED velocities, in-shell known-z companions plus redshift-unknown ones):
+
+| reading | kept of 57 (1999 pool) | (2026 pool) |
+|---|---|---|
+| literal: r/L^(1/3) and dv/L^(1/3) vs a,b x 400 | 23 | 26 |
+| raw velocity only | 28 | 33 |
+| **both raw: r vs 1000 kpc, dv vs 600 km/s** | **43** | **45** |
+| 2.0 finder's combined-luminosity norm | 15 | 17 |
+
+Despite the L^(1/3) scaling typeset in his eqs. 5-6, the implemented criterion
+used fixed thresholds. (Every worked example in his text sets L10 = 1, where
+the readings coincide; luminous pairs like NGC 7537/7541, L10 = 13, expose the
+difference.) Residual kills are borderline magnitude-threshold cases and
+anonymous RC3 objects whose 1999 redshift status is unknowable from current
+NED. With this reading the finder recovers **42 of his 57** (2026 mode; 33 in
+1999 mode).
+
+## The remaining structural gap: companion-pool depth
+
+The raw reading is permissive, and with only RC3 as the blocker pool the
+finder now returns 335 pairs against his 57. His 1999 NED blocked far more.
+Upper-bound test (NED shell galaxies as blockers, no magnitude threshold
+available since TAP has no photometry): 1999-epoch NED blockers would kill
+183/293 extras but also 21/42 true matches; 2026 blockers would kill 289/293
+extras AND 39/42 of his own pairs -- **by the modern catalogue almost nothing
+from 1999 is still "isolated" at these thresholds**, which quantifies the
+catalogue-epoch caveat in the section above. Making this faithful needs
+magnitudes for the blocker pool (the threshold is m3 <= m_pair + 2): the next
+step is a bulk HyperLEDA pull (v in shell + bt) to build a complete companion
+catalogue with photometry in one query.
